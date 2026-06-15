@@ -7,6 +7,11 @@ type Opportunity = {
   id: string;
   symbol: string;
   side: string;
+  timeframe: string;
+  created_at: string;
+  entry_plan_json: any;
+  stop_plan_json: any;
+  take_profit_json: any;
   ai_summary: string | null;
 };
 
@@ -14,12 +19,13 @@ export default function Page() {
   const client = supabase;
   const [opps, setOpps] = useState<Opportunity[]>([]);
   const [loading, setLoading] = useState(true);
+  const [processing, setProcessing] = useState<string | null>(null);
 
   useEffect(() => {
     const load = async () => {
       const { data } = await client
         .from('trade_opportunities')
-        .select('id, symbol, side, ai_summary')
+        .select('id, symbol, side, timeframe, created_at, entry_plan_json, stop_plan_json, take_profit_json, ai_summary')
         .eq('status', 'PENDING_APPROVAL')
         .order('created_at', { ascending: false });
       setOpps(data ?? []);
@@ -29,40 +35,160 @@ export default function Page() {
   }, [client]);
 
   const approve = async (id: string) => {
+    setProcessing(id);
     await fetch(`/api/opportunities/${id}/approve`, { method: 'POST' });
     setOpps((prev) => prev.filter((o) => o.id !== id));
+    setProcessing(null);
   };
 
   const reject = async (id: string) => {
+    setProcessing(id);
     await client
       .from('trade_opportunities')
       .update({ status: 'REJECTED' })
       .eq('id', id);
     setOpps((prev) => prev.filter((o) => o.id !== id));
+    setProcessing(null);
   };
 
   if (loading) {
-    return <div>Loading...</div>;
+    return <div style={{ color: '#9ca3af', fontSize: '15px' }}>Loading signals...</div>;
   }
 
   return (
     <div>
-      <h2>Opportunities</h2>
-      {opps.length === 0 && <p>No pending opportunities.</p>}
-      <ul>
-        {opps.map((o) => (
-          <li key={o.id} style={{ marginBottom: 16 }}>
-            <div>
-              <strong>{o.symbol}</strong> {o.side}
+      <h2 style={{ fontSize: '24px', fontWeight: 800, color: '#fff', marginBottom: '24px', letterSpacing: '-0.5px' }}>Pending Opportunities</h2>
+      {opps.length === 0 && <p style={{ color: '#9ca3af' }}>No pending opportunities.</p>}
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+        {opps.map((signal) => {
+          const entryPrice = signal.entry_plan_json?.price || signal.entry_plan_json?.limit_price;
+          const stopPrice = signal.stop_plan_json?.stop || signal.stop_plan_json?.stop_price;
+          const tpPrice = signal.take_profit_json?.tp || signal.take_profit_json?.tp_price;
+          const isProcessing = processing === signal.id;
+
+          return (
+            <div key={signal.id} style={{
+              background: '#0a0a0a',
+              border: '1px solid rgba(255,255,255,0.05)',
+              padding: '32px',
+              borderRadius: '24px',
+              transition: 'transform 0.2s, box-shadow 0.2s',
+              opacity: isProcessing ? 0.5 : 1,
+              pointerEvents: isProcessing ? 'none' : 'auto'
+            }}
+            onMouseOver={(e) => {
+              if (isProcessing) return;
+              e.currentTarget.style.transform = 'translateY(-2px)';
+              e.currentTarget.style.boxShadow = '0 12px 32px rgba(0,0,0,0.4)';
+              e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)';
+            }}
+            onMouseOut={(e) => {
+              if (isProcessing) return;
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = 'none';
+              e.currentTarget.style.borderColor = 'rgba(255,255,255,0.05)';
+            }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
+                <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+                  <div style={{ fontSize: '24px', fontWeight: 800, color: '#fff' }}>{signal.symbol}</div>
+                  <div style={{
+                    background: signal.side === 'LONG' ? 'rgba(74,222,128,0.1)' : 'rgba(248,113,113,0.1)',
+                    color: signal.side === 'LONG' ? '#4ade80' : '#f87171',
+                    padding: '4px 12px',
+                    borderRadius: '100px',
+                    fontSize: '12px',
+                    fontWeight: 800
+                  }}>
+                    {signal.side}
+                  </div>
+                  <div style={{ color: '#9ca3af', fontSize: '14px', fontWeight: 600 }}>{signal.timeframe}</div>
+                </div>
+                <div style={{ color: '#6b7280', fontSize: '13px', fontWeight: 500 }}>
+                  {new Date(signal.created_at).toLocaleString()}
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '16px', marginBottom: '24px' }}>
+                <div style={{ background: '#111', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.02)' }}>
+                  <div style={{ fontSize: '12px', color: '#9ca3af', marginBottom: '8px', fontWeight: 600 }}>ENTRY</div>
+                  {entryPrice ? (
+                    <div style={{ fontSize: '18px', fontWeight: 700, color: '#e5e7eb' }}>{entryPrice}</div>
+                  ) : (
+                    <div style={{ fontSize: '18px', fontWeight: 700, color: '#e5e7eb', filter: 'blur(6px)', userSelect: 'none' }}>0.0000</div>
+                  )}
+                </div>
+                <div style={{ background: '#111', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.02)' }}>
+                  <div style={{ fontSize: '12px', color: '#9ca3af', marginBottom: '8px', fontWeight: 600 }}>STOP LOSS</div>
+                  {stopPrice ? (
+                    <div style={{ fontSize: '18px', fontWeight: 700, color: '#f87171' }}>{stopPrice}</div>
+                  ) : (
+                    <div style={{ fontSize: '18px', fontWeight: 700, color: '#f87171', filter: 'blur(6px)', userSelect: 'none' }}>0.0000</div>
+                  )}
+                </div>
+                <div style={{ background: '#111', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.02)' }}>
+                  <div style={{ fontSize: '12px', color: '#9ca3af', marginBottom: '8px', fontWeight: 600 }}>TAKE PROFIT</div>
+                  {tpPrice ? (
+                    <div style={{ fontSize: '18px', fontWeight: 700, color: '#4ade80' }}>{tpPrice}</div>
+                  ) : (
+                    <div style={{ fontSize: '18px', fontWeight: 700, color: '#4ade80', filter: 'blur(6px)', userSelect: 'none' }}>0.0000</div>
+                  )}
+                </div>
+              </div>
+
+              <div style={{ background: 'rgba(37,99,235,0.05)', padding: '20px', borderRadius: '16px', border: '1px solid rgba(37,99,235,0.1)', marginBottom: '24px' }}>
+                <div style={{ fontSize: '12px', color: '#38bdf8', marginBottom: '8px', fontWeight: 700 }}>LLM INSTITUTIONAL RATIONALE</div>
+                {signal.ai_summary ? (
+                  <p style={{ margin: 0, fontSize: '15px', lineHeight: 1.6, color: '#e5e7eb' }}>{signal.ai_summary}</p>
+                ) : (
+                  <p style={{ margin: 0, fontSize: '15px', color: '#9ca3af', fontStyle: 'italic' }}>
+                    Awaiting institutional analysis sequence.
+                  </p>
+                )}
+              </div>
+
+              <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '24px' }}>
+                <button 
+                  onClick={() => reject(signal.id)}
+                  style={{
+                    padding: '10px 24px',
+                    background: 'transparent',
+                    border: '1px solid rgba(248,113,113,0.3)',
+                    color: '#f87171',
+                    borderRadius: '8px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                  }}
+                  onMouseOver={(e) => { e.currentTarget.style.background = 'rgba(248,113,113,0.1)'; e.currentTarget.style.borderColor = '#f87171'; }}
+                  onMouseOut={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'rgba(248,113,113,0.3)'; }}
+                >
+                  Reject Trade
+                </button>
+                <button 
+                  onClick={() => approve(signal.id)}
+                  style={{
+                    padding: '10px 24px',
+                    background: '#38bdf8',
+                    border: 'none',
+                    color: '#000',
+                    borderRadius: '8px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 14px 0 rgba(56,189,248,0.39)',
+                    transition: 'all 0.2s',
+                  }}
+                  onMouseOver={(e) => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 6px 20px rgba(56,189,248,0.5)'; }}
+                  onMouseOut={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 14px 0 rgba(56,189,248,0.39)'; }}
+                >
+                  Approve Execution
+                </button>
+              </div>
             </div>
-            {o.ai_summary && <p>{o.ai_summary}</p>}
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={() => approve(o.id)}>Approve</button>
-              <button onClick={() => reject(o.id)}>Reject</button>
-            </div>
-          </li>
-        ))}
-      </ul>
+          );
+        })}
+      </div>
     </div>
   );
 }
