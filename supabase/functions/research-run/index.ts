@@ -87,6 +87,12 @@ RULES:
    - For LONG trades, your Stop Loss MUST be strictly LESS THAN OR EQUAL TO the \`safe_long_stop_loss\` provided in the snapshot.
    - For SHORT trades, your Stop Loss MUST be strictly GREATER THAN OR EQUAL TO the \`safe_short_stop_loss\` provided in the snapshot.
    - CRITICAL: Do not attempt to do float math. Simply select a Stop Loss value that obeys the pre-calculated boundary condition.
+5. FUNDAMENTAL REALITY CHECK: If \`fundamental_context\` is provided in the snapshot, you MUST evaluate whether the technical setup contradicts the macro reality.
+   - You MUST explicitly evaluate if the news is BULLISH or BEARISH for the asset.
+   - Example (Oil): A peace pact, reopening of supply routes, or lower institutional price forecasts is strictly BEARISH. You must NOT interpret falling prices as a "bullish stabilization".
+   - If the fundamental reality is BEARISH, you MUST REJECT any LONG setups.
+   - If the fundamental reality is BULLISH, you MUST REJECT any SHORT setups.
+   - NEVER buy a fundamental crash just because the RSI looks cheap or the trend was previously bullish. If the fundamental context invalidates the technical trend, reject the trade.
 
 Current Market Context:
 ${JSON.stringify(snapshot, null, 2)}`;
@@ -141,6 +147,7 @@ serve(async (req) => {
   const timeframe = searchParams.get("timeframe") ?? "1D";
   const modelId = searchParams.get("model_id") ?? undefined;
   const modelVersion = searchParams.get("model_version") ?? undefined;
+  const newsContext = searchParams.get("news") ?? undefined;
   const symbolsParam =
     searchParams.get("symbols") ?? Deno.env.get("RESEARCH_SYMBOLS") ?? "AAPL";
   const symbols = symbolsParam.split(",").map((s) => s.trim()).filter(Boolean);
@@ -183,26 +190,28 @@ serve(async (req) => {
         });
         continue;
       }
-      if (!bars || !bars.length) {
-        console.log(`[Data Fetch] No bars returned for ${symbol}. Skipping.`);
-        continue;
-      }
-      console.log(`[Data Fetch] Successfully fetched ${bars.length} bars for ${symbol}.`);
+      
+      console.log(`\n[Info] [Data Fetch] Successfully fetched ${bars.length} bars for ${symbol}.`);
 
-      await saveBars(supabase, symbol, timeframe, bars);
-      await insertAuditLog(supabase, {
-        actor_type: "SYSTEM",
-        action: "MARKET_DATA_SAVED",
-        entity_type: "market_data",
-        payload_json: { symbol, timeframe, count: bars.length },
-      });
+      // Store fetched bars in PTI database asynchronously
+      saveBars(supabase, symbol, timeframe, bars).catch(err => 
+        console.error(`[Error] Failed to save bars for ${symbol}:`, err)
+      );
 
-      const closes = bars.map((b) => b.c);
-      const highs = bars.map((b) => b.h);
-      const lows = bars.map((b) => b.l);
-      const timestamps = bars.map((b) => b.t);
+      // LAYER A: Deterministic Evaluation Guard
+      const rawSnapshot = getContextSnapshot(
+        bars.map((b) => b.t),
+        bars.map((b) => b.h),
+        bars.map((b) => b.l),
+        bars.map((b) => b.c)
+      );
+      
+      // Inject macro context if provided via URL params
+      const snapshot = {
+        ...rawSnapshot,
+        fundamental_context: newsContext || "No fundamental news provided."
+      };
 
-      const snapshot = getContextSnapshot(timestamps, highs, lows, closes);
       console.log(`[Strategy Eval] Market snapshot for ${symbol}: Trend=${snapshot.trend_alignment}, RSI=${snapshot.rsi_14.toFixed(2)}, CurrentPrice=${snapshot.current_price}`);
       
       // LAYER A: Deterministic Guard
