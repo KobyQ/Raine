@@ -1,9 +1,10 @@
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
-import { insertAuditLog } from "../core/audit.ts";
+import { insertAuditLog } from "../core/audit";
 
 function getEnv(name: string): string | undefined {
-  if (typeof Deno !== "undefined" && typeof Deno.env?.get === "function") {
-    return Deno.env.get(name) ?? undefined;
+  const _Deno = (globalThis as any).Deno;
+  if (typeof _Deno !== "undefined" && typeof _Deno.env?.get === "function") {
+    return _Deno.env.get(name) ?? undefined;
   }
   if (typeof process !== "undefined") {
     return process.env[name];
@@ -58,7 +59,7 @@ export async function placePaperOrder(
       actor_type: 'SYSTEM',
       action: 'PLACE_ORDER',
       entity_type: 'order',
-      payload_json: order,
+      payload_json: order as unknown as Record<string, unknown>,
     });
   }
 
@@ -90,7 +91,7 @@ export async function placePaperOrder(
 
 export interface TrackedOrderRequest extends OrderRequest {
   tradeId: string;
-  supabase: SupabaseClient;
+  supabase: any;
   n?: number;
 }
 
@@ -123,6 +124,10 @@ export async function placeAndTrackOrder(req: TrackedOrderRequest) {
     })
     .select('id')
     .single();
+
+  if (!orderRow) {
+    throw new Error('Failed to insert order into database');
+  }
 
   let filledQty = 0;
   let status = orderRes.status as string;
@@ -175,7 +180,8 @@ export async function fetchPaperBars(
   limit = 100,
 ): Promise<Bar[]> {
   const base = 'https://data.alpaca.markets/v2';
-  const { key, secret } = await creds();
+  const key = getEnv('BROKER_KEY') || process.env.BROKER_KEY || '';
+  const secret = getEnv('BROKER_SECRET') || process.env.BROKER_SECRET || '';
   const res = await fetch(
     `${base}/stocks/${symbol}/bars?timeframe=${timeframe}&limit=${limit}`,
     {

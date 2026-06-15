@@ -9,7 +9,9 @@
   ],
   "dependencies": {
     "@azure/identity": "^3.4.0",
-    "@azure/keyvault-secrets": "^4.7.0"
+    "@azure/keyvault-secrets": "^4.7.0",
+    "@supabase/supabase-js": "2.108.2",
+    "technicalindicators": "^3.1.0"
   },
   "scripts": {
     "build": "pnpm -r build",

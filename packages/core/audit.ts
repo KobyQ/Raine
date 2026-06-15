@@ -18,7 +18,7 @@ async function computeHash(input: string) {
 }
 
 export async function insertAuditLog(
-  supabase: SupabaseClient,
+  supabase: any,
   entry: AuditEntry,
 ) {
   const { data: last } = await supabase

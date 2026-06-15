@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@lib/supabase';
+import { supabaseServer } from '@lib/supabase-server';
 
 export async function GET() {
-  const client = supabase;
+  const client = supabaseServer();
   const { data, error } = await client
     .from('profit_take_requests')
     .select('id, trade_id, price, created_at, expires_at')

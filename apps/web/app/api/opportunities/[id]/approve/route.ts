@@ -115,10 +115,11 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     .eq('id', params.id);
 
   if (idKey) {
-    await client
-      .from('idempotency_keys')
-      .insert({ key: idKey, entity_type: 'trade', entity_id: trade.id })
-      .catch(() => {});
+    try {
+      await client
+        .from('idempotency_keys')
+        .insert({ key: idKey, entity_type: 'trade', entity_id: trade.id });
+    } catch (_) {}
   }
 
   return NextResponse.json({ ok: true, tradeId: trade.id });
