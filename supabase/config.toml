@@ -337,33 +337,33 @@ s3_secret_key = "env(S3_SECRET_KEY)"
 [functions.research-run]
 verify_jwt = false
 
-[functions.research-run.schedule]
-cron = "*/30 * * * *"
+# [functions.research-run.schedule]
+# cron = "*/30 * * * *"
 
 # Trigger the Outcome Simulator at 2 and 32 past the hour
 [functions.resolve-outcomes]
 verify_jwt = false
 
-[functions.resolve-outcomes.schedule]
-cron = "2,32 * * * *"
+# [functions.resolve-outcomes.schedule]
+# cron = "2,32 * * * *"
 
 # Watchdog: Verify the system is healthy every 30 minutes, offset by 15 mins
 [functions.system-health-ping]
 verify_jwt = false
 
-[functions.system-health-ping.schedule]
-cron = "15,45 * * * *"
+# [functions.system-health-ping.schedule]
+# cron = "15,45 * * * *"
 
 # Weekly Auto-Brag: Aggregate metrics and push to Telegram on Friday at 21:00 UTC
 [functions.generate-weekly-report]
 verify_jwt = false
 
-[functions.generate-weekly-report.schedule]
-cron = "0 21 * * 5"
+# [functions.generate-weekly-report.schedule]
+# cron = "0 21 * * 5"
 
 # Daily Drip Campaign: Execute Day 3 and Day 7 email sequences
 [functions.daily-drip-campaign]
 verify_jwt = false
 
-[functions.daily-drip-campaign.schedule]
-cron = "0 12 * * *"
+# [functions.daily-drip-campaign.schedule]
+# cron = "0 12 * * *"

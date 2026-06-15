@@ -1,4 +1,4 @@
-import { SupabaseClient } from "@supabase/supabase-js";
+import { SupabaseClient } from "npm:@supabase/supabase-js@2.108.2";
 
 export interface AuditEntry {
   actor_type: string;

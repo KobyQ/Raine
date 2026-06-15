@@ -7,7 +7,7 @@ export type LogicContext = {
   ema_200: number | null;
   rsi_14: number | null;
   adx_14: number | null;
-  trend_alignment: 'BULLISH' | 'BEARISH' | 'CHOP';
+  trend_alignment: 'BULLISH_TREND' | 'BULLISH_PULLBACK' | 'BEARISH_TREND' | 'BEARISH_PULLBACK' | 'CHOP';
 };
 
 export function getContextSnapshot(
@@ -52,13 +52,23 @@ export function getContextSnapshot(
   const current_adx_14 = adx14.length > 0 ? adx14[adx14.length - 1] : null;
 
   // Determine trend alignment
-  let trend_alignment: 'BULLISH' | 'BEARISH' | 'CHOP' = 'CHOP';
+  let trend_alignment: 'BULLISH_TREND' | 'BULLISH_PULLBACK' | 'BEARISH_TREND' | 'BEARISH_PULLBACK' | 'CHOP' = 'CHOP';
 
-  if (current_ema_50 !== null && current_ema_200 !== null) {
-    if (current_price > current_ema_50 && current_ema_50 > current_ema_200) {
-      trend_alignment = 'BULLISH';
-    } else if (current_price < current_ema_50 && current_ema_50 < current_ema_200) {
-      trend_alignment = 'BEARISH';
+  if (current_ema_50 !== null && current_ema_200 !== null && current_rsi_14 !== null) {
+    if (current_ema_50 > current_ema_200) {
+      // Macro Bullish
+      if (current_price > current_ema_50 && current_rsi_14 >= 45) {
+        trend_alignment = 'BULLISH_TREND';
+      } else if (current_rsi_14 < 45) {
+        trend_alignment = 'BULLISH_PULLBACK';
+      }
+    } else if (current_ema_50 < current_ema_200) {
+      // Macro Bearish
+      if (current_price < current_ema_50 && current_rsi_14 <= 55) {
+        trend_alignment = 'BEARISH_TREND';
+      } else if (current_rsi_14 > 55) {
+        trend_alignment = 'BEARISH_PULLBACK';
+      }
     }
   }
 

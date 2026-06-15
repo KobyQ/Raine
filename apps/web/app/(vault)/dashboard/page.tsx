@@ -16,10 +16,9 @@ type VaultSignal = {
   timeframe: string;
   status: string;
   created_at: string;
-  // Proprietary Fields (nullable for FREE users)
-  entry_plan_json?: { price: number } | null;
-  stop_plan_json?: { stop: number } | null;
-  take_profit_json?: { tp: number } | null;
+  entry_plan_json?: { price: number; limit_price?: number } | null;
+  stop_plan_json?: { stop: number; stop_price?: number } | null;
+  take_profit_json?: { tp: number; tp_price?: number } | null;
   ai_summary?: string | null;
 };
 
@@ -29,214 +28,310 @@ export default function VaultDashboard() {
   const [isPro, setIsPro] = useState<boolean>(false);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<{ id: string; email: string } | null>(null);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
   useEffect(() => {
-    const loadVaultData = async () => {
+    const loadInitialData = async () => {
       try {
-        const [res, metricsRes, { data: authData }] = await Promise.all([
-          fetch('/api/vault/signals'),
+        const [metricsRes, { data: authData }] = await Promise.all([
           fetch('/api/vault/metrics'),
           supabase.auth.getUser()
         ]);
 
-        const data = await res.json();
-        const metricsData = await metricsRes.json();
-
-        if (res.ok) {
-          setSignals(data.signals || []);
-          setIsPro(data.is_pro || false);
-        }
         if (authData.user) {
           setUser({ id: authData.user.id, email: authData.user.email || '' });
         }
 
+        const metricsData = await metricsRes.json();
         if (metricsRes.ok && !metricsData.error) {
           setMetrics(metricsData);
         }
       } catch (err) {
-        console.error('Failed to load vault data', err);
+        console.error('Failed to load initial data', err);
+      }
+    };
+
+    loadInitialData();
+  }, []);
+
+  useEffect(() => {
+    const loadSignals = async () => {
+      try {
+        const res = await fetch(`/api/vault/signals?page=${page}&limit=10`);
+        const data = await res.json();
+
+        if (res.ok) {
+          setSignals(data.signals || []);
+          setIsPro(data.is_pro || false);
+          if (data.pagination) {
+            setTotalPages(Math.ceil(data.pagination.total / data.pagination.limit) || 1);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load signals', err);
       } finally {
         setLoading(false);
       }
     };
 
-    loadVaultData();
-  }, []);
+    loadSignals();
+  }, [page]);
 
-  if (loading) return <div>Decrypting Vault...</div>;
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
+        <div style={{ color: '#38bdf8', fontSize: '18px', fontWeight: 600 }}>Decrypting Ledger...</div>
+      </div>
+    );
+  }
 
   return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-        <h2>The Vault</h2>
-        {!isPro && (
-          <span style={{
-            background: 'linear-gradient(90deg, #ca8a04, #eab308)',
-            padding: '4px 12px',
-            borderRadius: 16,
-            fontSize: 12,
-            fontWeight: 'bold',
-            color: '#000'
+    <div style={{ paddingBottom: '64px' }}>
+      {/* Header section */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '40px', flexWrap: 'wrap', gap: '16px' }}>
+        <div>
+          <h1 style={{ fontSize: '36px', fontWeight: 800, color: '#fff', letterSpacing: '-1px', margin: 0 }}>The Vault</h1>
+          <p style={{ color: '#9ca3af', fontSize: '15px', marginTop: '8px' }}>Immutable execution ledger and system metrics.</p>
+        </div>
+        {!isPro ? (
+          <div style={{
+            background: 'rgba(234, 179, 8, 0.1)',
+            border: '1px solid rgba(234, 179, 8, 0.3)',
+            padding: '8px 16px',
+            borderRadius: '100px',
+            fontSize: '13px',
+            fontWeight: 700,
+            color: '#fef08a'
           }}>
             TIER 1 (DELAYED)
-          </span>
-        )}
-        {isPro && (
-          <span style={{
-            background: 'linear-gradient(90deg, #2563eb, #60a5fa)',
-            padding: '4px 12px',
-            borderRadius: 16,
-            fontSize: 12,
-            fontWeight: 'bold',
-            color: '#fff'
+          </div>
+        ) : (
+          <div style={{
+            background: 'rgba(56, 189, 248, 0.1)',
+            border: '1px solid rgba(56, 189, 248, 0.3)',
+            padding: '8px 16px',
+            borderRadius: '100px',
+            fontSize: '13px',
+            fontWeight: 700,
+            color: '#38bdf8'
           }}>
             ALPHA UNLOCKED
-          </span>
+          </div>
         )}
       </div>
 
+      {!isPro && user && (
+        <div style={{
+          background: 'linear-gradient(145deg, rgba(30,30,30,0.8) 0%, rgba(15,15,15,0.8) 100%)',
+          border: '1px solid rgba(255,255,255,0.05)',
+          padding: '32px',
+          borderRadius: '24px',
+          marginBottom: '40px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '24px'
+        }}>
+          <div>
+            <h3 style={{ fontSize: '20px', fontWeight: 700, color: '#fff', marginBottom: '8px' }}>Public Access Mode</h3>
+            <p style={{ color: '#9ca3af', fontSize: '15px', maxWidth: '600px', margin: 0 }}>
+              Signals are intentionally delayed by 4+ hours and proprietary execution rationale is redacted. 
+              Upgrade to <strong>RaineBank Alpha</strong> for real-time institutional market intelligence.
+            </p>
+          </div>
+          <div style={{ minWidth: '200px' }}>
+            <CheckoutButton
+              email={user.email}
+              userId={user.id}
+              planCode="PLN_test_alphaplan" // Replace with actual plan code
+              amount={9900} // e.g. $99.00 -> 9900 cents/kobo
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Metrics Grid */}
       {metrics && (
-        <div style={{ marginBottom: 32 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 24 }}>
-            <div style={{ background: 'var(--panel-bg)', border: '1px solid var(--border-color)', padding: 20, borderRadius: 12 }}>
-              <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 8, fontWeight: 'bold' }}>WIN RATE</div>
-              <div style={{ fontSize: 32, fontWeight: 'bold', color: metrics.winRate > 50 ? '#4ade80' : '#f87171' }}>
+        <div style={{ marginBottom: '40px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '24px', marginBottom: '24px' }}>
+            <div style={{ background: '#111', border: '1px solid rgba(255,255,255,0.05)', padding: '32px', borderRadius: '24px' }}>
+              <div style={{ fontSize: '13px', color: '#9ca3af', marginBottom: '12px', fontWeight: 600 }}>WIN RATE (30D)</div>
+              <div style={{ fontSize: '40px', fontWeight: 800, color: metrics.winRate > 50 ? '#4ade80' : '#f87171', letterSpacing: '-1px' }}>
                 {metrics.winRate}%
               </div>
             </div>
-            <div style={{ background: 'var(--panel-bg)', border: '1px solid var(--border-color)', padding: 20, borderRadius: 12 }}>
-              <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 8, fontWeight: 'bold' }}>NET R-MULTIPLE</div>
-              <div style={{ fontSize: 32, fontWeight: 'bold', color: metrics.netR > 0 ? '#4ade80' : '#f87171' }}>
+            <div style={{ background: '#111', border: '1px solid rgba(255,255,255,0.05)', padding: '32px', borderRadius: '24px' }}>
+              <div style={{ fontSize: '13px', color: '#9ca3af', marginBottom: '12px', fontWeight: 600 }}>NET R-MULTIPLE</div>
+              <div style={{ fontSize: '40px', fontWeight: 800, color: metrics.netR > 0 ? '#38bdf8' : '#f87171', letterSpacing: '-1px' }}>
                 {metrics.netR > 0 ? '+' : ''}{metrics.netR}R
               </div>
             </div>
-            <div style={{ background: 'var(--panel-bg)', border: '1px solid var(--border-color)', padding: 20, borderRadius: 12 }}>
-              <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 8, fontWeight: 'bold' }}>SYSTEM EXPECTANCY</div>
-              <div style={{ fontSize: 32, fontWeight: 'bold', color: metrics.expectancy > 0 ? '#4ade80' : '#f87171' }}>
+            <div style={{ background: '#111', border: '1px solid rgba(255,255,255,0.05)', padding: '32px', borderRadius: '24px' }}>
+              <div style={{ fontSize: '13px', color: '#9ca3af', marginBottom: '12px', fontWeight: 600 }}>SYSTEM EXPECTANCY</div>
+              <div style={{ fontSize: '40px', fontWeight: 800, color: metrics.expectancy > 0 ? '#a855f7' : '#f87171', letterSpacing: '-1px' }}>
                 {metrics.expectancy > 0 ? '+' : ''}{metrics.expectancy}R
               </div>
             </div>
           </div>
 
-          <div style={{ background: 'var(--panel-bg)', border: '1px solid var(--border-color)', padding: 20, borderRadius: 12, height: 300 }}>
-            <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 16, fontWeight: 'bold' }}>CUMULATIVE EQUITY CURVE (R)</div>
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={metrics.equityCurve} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="colorR" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#4ade80" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#4ade80" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <XAxis dataKey="date" stroke="var(--text-secondary)" fontSize={11} tickLine={false} axisLine={false} />
-                <YAxis stroke="var(--text-secondary)" fontSize={11} tickLine={false} axisLine={false} />
-                <Tooltip
-                  contentStyle={{ backgroundColor: 'var(--panel-bg)', border: '1px solid var(--border-color)', borderRadius: 8 }}
-                  itemStyle={{ color: '#4ade80', fontWeight: 'bold' }}
-                />
-                <Area type="monotone" dataKey="cumulative_r" stroke="#4ade80" strokeWidth={2} fillOpacity={1} fill="url(#colorR)" />
-              </AreaChart>
-            </ResponsiveContainer>
+          <div style={{ background: '#111', border: '1px solid rgba(255,255,255,0.05)', padding: '32px', borderRadius: '24px', height: '400px' }}>
+            <div style={{ fontSize: '14px', color: '#9ca3af', marginBottom: '24px', fontWeight: 600 }}>CUMULATIVE EQUITY CURVE (R)</div>
+            <div style={{ width: '100%', height: 'calc(100% - 40px)' }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={metrics.equityCurve} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="colorR" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#38bdf8" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#38bdf8" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <XAxis dataKey="date" stroke="#4b5563" fontSize={12} tickLine={false} axisLine={false} />
+                  <YAxis stroke="#4b5563" fontSize={12} tickLine={false} axisLine={false} />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: '#111', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', color: '#fff' }}
+                    itemStyle={{ color: '#38bdf8', fontWeight: 'bold' }}
+                  />
+                  <Area type="monotone" dataKey="cumulative_r" stroke="#38bdf8" strokeWidth={3} fillOpacity={1} fill="url(#colorR)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         </div>
       )}
 
-      {!isPro && (
-        <div style={{
-          background: 'rgba(234, 179, 8, 0.1)',
-          border: '1px solid rgba(234, 179, 8, 0.3)',
-          padding: 16,
-          borderRadius: 8,
-          marginBottom: 24,
-          color: '#fef08a',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 16
-        }}>
-          <div>
-            <strong>Public Access Mode:</strong> Signals are delayed by 4+ hours and proprietary execution logic is hidden.
-            Upgrade to <strong>RaineBank Alpha</strong> for real-time market intelligence.
-          </div>
-          {user && (
-            <div style={{ maxWidth: 250 }}>
-              <CheckoutButton
-                email={user.email}
-                userId={user.id}
-                planCode="PLN_test_alphaplan" // Replace with actual plan code
-                amount={9900} // e.g. $99.00 -> 9900 cents/kobo
-              />
-            </div>
-          )}
-        </div>
-      )}
+      {/* Signals List */}
+      <h2 style={{ fontSize: '24px', fontWeight: 800, color: '#fff', marginBottom: '24px', letterSpacing: '-0.5px' }}>Ledger Feed</h2>
+      {signals.length === 0 && <p style={{ color: '#9ca3af' }}>No signals found in the vault.</p>}
 
-      {signals.length === 0 && <p>No signals found in the vault.</p>}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+        {signals.map((signal) => {
+          const entryPrice = signal.entry_plan_json?.price || signal.entry_plan_json?.limit_price;
+          const stopPrice = signal.stop_plan_json?.stop || signal.stop_plan_json?.stop_price;
+          const tpPrice = signal.take_profit_json?.tp || signal.take_profit_json?.tp_price;
 
-      <div style={{ display: 'grid', gap: 16 }}>
-        {signals.map((signal) => (
-          <div key={signal.id} style={{
-            background: 'var(--panel-bg)',
-            border: '1px solid var(--border-color)',
-            padding: 20,
-            borderRadius: 12,
-            boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
-              <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                <strong style={{ fontSize: 18 }}>{signal.symbol}</strong>
-                <span style={{
-                  color: signal.side === 'LONG' ? '#4ade80' : '#f87171',
-                  fontWeight: 'bold'
-                }}>
-                  {signal.side}
-                </span>
-                <span style={{ color: 'var(--text-secondary)', fontSize: 14 }}>{signal.timeframe}</span>
+          return (
+            <div key={signal.id} style={{
+              background: '#0a0a0a',
+              border: '1px solid rgba(255,255,255,0.05)',
+              padding: '32px',
+              borderRadius: '24px',
+              transition: 'transform 0.2s, box-shadow 0.2s',
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.transform = 'translateY(-2px)';
+              e.currentTarget.style.boxShadow = '0 12px 32px rgba(0,0,0,0.4)';
+              e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)';
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = 'none';
+              e.currentTarget.style.borderColor = 'rgba(255,255,255,0.05)';
+            }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
+                <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+                  <div style={{ fontSize: '24px', fontWeight: 800, color: '#fff' }}>{signal.symbol}</div>
+                  <div style={{
+                    background: signal.side === 'LONG' ? 'rgba(74,222,128,0.1)' : 'rgba(248,113,113,0.1)',
+                    color: signal.side === 'LONG' ? '#4ade80' : '#f87171',
+                    padding: '4px 12px',
+                    borderRadius: '100px',
+                    fontSize: '12px',
+                    fontWeight: 800
+                  }}>
+                    {signal.side}
+                  </div>
+                  <div style={{ color: '#9ca3af', fontSize: '14px', fontWeight: 600 }}>{signal.timeframe}</div>
+                </div>
+                <div style={{ color: '#6b7280', fontSize: '13px', fontWeight: 500 }}>
+                  {new Date(signal.created_at).toLocaleString()}
+                </div>
               </div>
-              <span style={{ color: 'var(--text-secondary)', fontSize: 12 }}>
-                {new Date(signal.created_at).toLocaleString()}
-              </span>
-            </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 16 }}>
-              <div style={{ background: 'rgba(0,0,0,0.2)', padding: '8px 12px', borderRadius: 8 }}>
-                <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 4 }}>ENTRY</div>
-                {signal.entry_plan_json ? (
-                  <strong>{signal.entry_plan_json.price}</strong>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '16px', marginBottom: '24px' }}>
+                <div style={{ background: '#111', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.02)' }}>
+                  <div style={{ fontSize: '12px', color: '#9ca3af', marginBottom: '8px', fontWeight: 600 }}>ENTRY</div>
+                  {entryPrice ? (
+                    <div style={{ fontSize: '18px', fontWeight: 700, color: '#e5e7eb' }}>{entryPrice}</div>
+                  ) : (
+                    <div style={{ fontSize: '18px', fontWeight: 700, color: '#e5e7eb', filter: 'blur(6px)', userSelect: 'none' }}>0.0000</div>
+                  )}
+                </div>
+                <div style={{ background: '#111', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.02)' }}>
+                  <div style={{ fontSize: '12px', color: '#9ca3af', marginBottom: '8px', fontWeight: 600 }}>STOP LOSS</div>
+                  {stopPrice ? (
+                    <div style={{ fontSize: '18px', fontWeight: 700, color: '#f87171' }}>{stopPrice}</div>
+                  ) : (
+                    <div style={{ fontSize: '18px', fontWeight: 700, color: '#f87171', filter: 'blur(6px)', userSelect: 'none' }}>0.0000</div>
+                  )}
+                </div>
+                <div style={{ background: '#111', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.02)' }}>
+                  <div style={{ fontSize: '12px', color: '#9ca3af', marginBottom: '8px', fontWeight: 600 }}>TAKE PROFIT</div>
+                  {tpPrice ? (
+                    <div style={{ fontSize: '18px', fontWeight: 700, color: '#4ade80' }}>{tpPrice}</div>
+                  ) : (
+                    <div style={{ fontSize: '18px', fontWeight: 700, color: '#4ade80', filter: 'blur(6px)', userSelect: 'none' }}>0.0000</div>
+                  )}
+                </div>
+              </div>
+
+              <div style={{ background: 'rgba(37,99,235,0.05)', padding: '20px', borderRadius: '16px', border: '1px solid rgba(37,99,235,0.1)' }}>
+                <div style={{ fontSize: '12px', color: '#38bdf8', marginBottom: '8px', fontWeight: 700 }}>LLM INSTITUTIONAL RATIONALE</div>
+                {signal.ai_summary ? (
+                  <p style={{ margin: 0, fontSize: '15px', lineHeight: 1.6, color: '#e5e7eb' }}>{signal.ai_summary}</p>
                 ) : (
-                  <span style={{ filter: 'blur(4px)', userSelect: 'none' }}>0.0000</span>
+                  <p style={{ margin: 0, fontSize: '15px', color: '#9ca3af', fontStyle: 'italic' }}>
+                    Institutional thesis hidden. Upgrade to Alpha to view full LLM Rationale and logical validation sequence.
+                  </p>
                 )}
               </div>
-              <div style={{ background: 'rgba(0,0,0,0.2)', padding: '8px 12px', borderRadius: 8 }}>
-                <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 4 }}>STOP LOSS</div>
-                {signal.stop_plan_json ? (
-                  <strong>{signal.stop_plan_json.stop}</strong>
-                ) : (
-                  <span style={{ filter: 'blur(4px)', userSelect: 'none' }}>0.0000</span>
-                )}
-              </div>
-              <div style={{ background: 'rgba(0,0,0,0.2)', padding: '8px 12px', borderRadius: 8 }}>
-                <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 4 }}>TAKE PROFIT</div>
-                {signal.take_profit_json ? (
-                  <strong>{signal.take_profit_json.tp}</strong>
-                ) : (
-                  <span style={{ filter: 'blur(4px)', userSelect: 'none' }}>0.0000</span>
-                )}
-              </div>
             </div>
-
-            <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: 12 }}>
-              <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 4 }}>LLM RATIONALE</div>
-              {signal.ai_summary ? (
-                <p style={{ margin: 0, fontSize: 14, lineHeight: 1.5 }}>{signal.ai_summary}</p>
-              ) : (
-                <p style={{ margin: 0, fontSize: 14, color: 'var(--text-secondary)', fontStyle: 'italic' }}>
-                  Institutional thesis hidden. Upgrade to Alpha to view LLM Rationale.
-                </p>
-              )}
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
+
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '16px', marginTop: '40px' }}>
+          <button 
+            disabled={page === 1}
+            onClick={() => setPage(p => Math.max(1, p - 1))}
+            style={{
+              padding: '8px 16px',
+              background: '#111',
+              border: '1px solid rgba(255,255,255,0.1)',
+              borderRadius: '8px',
+              color: page === 1 ? '#4b5563' : '#fff',
+              cursor: page === 1 ? 'not-allowed' : 'pointer',
+              fontWeight: 600,
+              transition: 'all 0.2s'
+            }}
+          >
+            Previous
+          </button>
+          <div style={{ color: '#9ca3af', fontSize: '14px', fontWeight: 500 }}>
+            Page {page} of {totalPages}
+          </div>
+          <button 
+            disabled={page === totalPages}
+            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+            style={{
+              padding: '8px 16px',
+              background: '#111',
+              border: '1px solid rgba(255,255,255,0.1)',
+              borderRadius: '8px',
+              color: page === totalPages ? '#4b5563' : '#fff',
+              cursor: page === totalPages ? 'not-allowed' : 'pointer',
+              fontWeight: 600,
+              transition: 'all 0.2s'
+            }}
+          >
+            Next
+          </button>
+        </div>
+      )}
     </div>
   );
 }

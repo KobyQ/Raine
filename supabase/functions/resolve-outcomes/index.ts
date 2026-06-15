@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "@supabase/supabase-js";
+import { createClient } from "npm:@supabase/supabase-js@2.108.2";
 import { insertAuditLog } from "../_shared/audit.ts";
 
 serve(async (req) => {

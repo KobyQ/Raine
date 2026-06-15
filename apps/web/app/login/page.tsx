@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@lib/supabase';
 import { Terminal, ArrowRight, Loader2 } from 'lucide-react';
+import Link from 'next/link';
+import Logo from '@components/Logo';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -31,13 +33,11 @@ export default function LoginPage() {
           email,
           password,
           options: {
-            // Optional: if you have a custom email template or redirect URL, configure it in Supabase dashboard
             emailRedirectTo: `${window.location.origin}/dashboard`,
           },
         });
         if (signUpError) throw signUpError;
-        // Supabase might require email confirmation, but for now we'll assume they can login or check email
-        setError('Check your email to confirm your account (if email confirmation is required), or login directly.');
+        setError('Check your email to confirm your account, or login directly.');
         setIsLogin(true);
       }
     } catch (err: any) {
@@ -51,249 +51,243 @@ export default function LoginPage() {
     <div
       style={{
         minHeight: '100vh',
-        backgroundColor: '#0a0a0a',
-        color: '#ededed',
-        fontFamily:
-          '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+        backgroundColor: '#050505',
+        color: '#e5e7eb',
+        fontFamily: 'system-ui, -apple-system, sans-serif',
         display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
+        flexDirection: 'column',
         position: 'relative',
         overflow: 'hidden',
       }}
     >
-      {/* Background Gradients (Glassmorphic vibe) */}
-      <div
-        style={{
-          position: 'absolute',
-          top: '-10%',
-          left: '20%',
-          width: '50vw',
-          height: '50vw',
-          background: 'radial-gradient(circle, rgba(16,185,129,0.15) 0%, rgba(0,0,0,0) 70%)',
-          borderRadius: '50%',
-          pointerEvents: 'none',
-        }}
-      />
-      <div
-        style={{
-          position: 'absolute',
-          bottom: '-10%',
-          right: '10%',
-          width: '40vw',
-          height: '40vw',
-          background: 'radial-gradient(circle, rgba(59,130,246,0.1) 0%, rgba(0,0,0,0) 70%)',
-          borderRadius: '50%',
-          pointerEvents: 'none',
-        }}
-      />
+      {/* Background Gradients (Matches Landing Page) */}
+      <div style={{
+        position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
+        background: 'radial-gradient(circle at 15% 15%, rgba(37, 99, 235, 0.1) 0%, transparent 40%), radial-gradient(circle at 85% 85%, rgba(74, 222, 128, 0.05) 0%, transparent 40%)',
+        zIndex: 0, pointerEvents: 'none'
+      }} />
 
-      {/* Main Card */}
-      <div
-        style={{
-          position: 'relative',
-          width: '100%',
-          maxWidth: '420px',
-          padding: '2.5rem',
-          backgroundColor: 'rgba(20, 20, 20, 0.6)',
-          backdropFilter: 'blur(16px)',
-          border: '1px solid rgba(255, 255, 255, 0.08)',
-          borderRadius: '16px',
-          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
-          zIndex: 10,
-        }}
-      >
-        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '2rem' }}>
-          <div
-            style={{
-              padding: '12px',
-              backgroundColor: 'rgba(16, 185, 129, 0.1)',
-              borderRadius: '12px',
-              border: '1px solid rgba(16, 185, 129, 0.2)',
-            }}
-          >
-            <Terminal size={32} color="#10b981" />
-          </div>
-        </div>
+      {/* Floating Header */}
+      <div style={{ padding: '24px', display: 'flex', justifyContent: 'center', zIndex: 10 }}>
+        <nav style={{
+          display: 'flex', justifyContent: 'center', alignItems: 'center',
+          background: 'rgba(20, 20, 20, 0.6)', backdropFilter: 'blur(16px)',
+          border: '1px solid rgba(255,255,255,0.05)', borderRadius: '100px',
+          padding: '12px 32px', width: '100%', maxWidth: '1200px',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.4)'
+        }}>
+          <Link href="/" style={{ textDecoration: 'none' }}>
+            <Logo />
+          </Link>
+        </nav>
+      </div>
 
-        <h2
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', zIndex: 10 }}>
+        {/* Main Card */}
+        <div
           style={{
-            fontSize: '1.75rem',
-            fontWeight: 700,
-            textAlign: 'center',
-            marginBottom: '0.5rem',
-            letterSpacing: '-0.025em',
+            width: '100%',
+            maxWidth: '420px',
+            padding: '40px',
+            background: 'linear-gradient(145deg, rgba(30,30,30,0.8) 0%, rgba(15,15,15,0.8) 100%)',
+            backdropFilter: 'blur(16px)',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            borderRadius: '24px',
+            boxShadow: '0 24px 64px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1)',
           }}
         >
-          {isLogin ? 'Access the Vault' : 'Initialize Account'}
-        </h2>
-        <p
-          style={{
-            color: '#a1a1aa',
-            textAlign: 'center',
-            marginBottom: '2rem',
-            fontSize: '0.95rem',
-          }}
-        >
-          {isLogin
-            ? 'Authenticate to view the immutable ledger.'
-            : 'Join RaineBank for real-time alpha signals.'}
-        </p>
-
-        {error && (
-          <div
-            style={{
-              padding: '0.75rem 1rem',
-              backgroundColor: 'rgba(239, 68, 68, 0.1)',
-              borderLeft: '4px solid #ef4444',
-              borderRadius: '4px',
-              marginBottom: '1.5rem',
-              fontSize: '0.875rem',
-              color: '#fca5a5',
-            }}
-          >
-            {error}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-          <div>
-            <label
-              htmlFor="email"
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '32px' }}>
+            <div
               style={{
-                display: 'block',
-                fontSize: '0.875rem',
-                fontWeight: 500,
-                marginBottom: '0.5rem',
-                color: '#d4d4d8',
+                padding: '12px',
+                backgroundColor: 'rgba(56, 189, 248, 0.1)',
+                borderRadius: '12px',
+                border: '1px solid rgba(56, 189, 248, 0.2)',
               }}
             >
-              Institutional Email
-            </label>
-            <input
-              id="email"
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="operator@fund.com"
-              style={{
-                width: '100%',
-                padding: '0.75rem 1rem',
-                backgroundColor: 'rgba(0, 0, 0, 0.5)',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                borderRadius: '8px',
-                color: 'white',
-                fontSize: '1rem',
-                outline: 'none',
-                transition: 'border-color 0.2s',
-              }}
-              onFocus={(e) => (e.target.style.borderColor = '#10b981')}
-              onBlur={(e) => (e.target.style.borderColor = 'rgba(255, 255, 255, 0.1)')}
-            />
+              <Terminal size={32} color="#38bdf8" />
+            </div>
           </div>
 
-          <div>
-            <label
-              htmlFor="password"
-              style={{
-                display: 'block',
-                fontSize: '0.875rem',
-                fontWeight: 500,
-                marginBottom: '0.5rem',
-                color: '#d4d4d8',
-              }}
-            >
-              Passphrase
-            </label>
-            <input
-              id="password"
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              style={{
-                width: '100%',
-                padding: '0.75rem 1rem',
-                backgroundColor: 'rgba(0, 0, 0, 0.5)',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                borderRadius: '8px',
-                color: 'white',
-                fontSize: '1rem',
-                outline: 'none',
-                transition: 'border-color 0.2s',
-              }}
-              onFocus={(e) => (e.target.style.borderColor = '#10b981')}
-              onBlur={(e) => (e.target.style.borderColor = 'rgba(255, 255, 255, 0.1)')}
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
+          <h2
             style={{
-              width: '100%',
-              marginTop: '1rem',
-              padding: '0.875rem',
-              backgroundColor: '#10b981',
-              color: '#000',
-              border: 'none',
-              borderRadius: '8px',
-              fontSize: '1rem',
-              fontWeight: 600,
-              cursor: loading ? 'not-allowed' : 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '0.5rem',
-              transition: 'background-color 0.2s',
-              opacity: loading ? 0.7 : 1,
-            }}
-            onMouseOver={(e) => {
-              if (!loading) e.currentTarget.style.backgroundColor = '#0ea5e9'; // A nice transition color
-            }}
-            onMouseOut={(e) => {
-              if (!loading) e.currentTarget.style.backgroundColor = '#10b981';
+              fontSize: '28px',
+              fontWeight: 800,
+              textAlign: 'center',
+              marginBottom: '8px',
+              letterSpacing: '-1px',
+              color: '#fff'
             }}
           >
-            {loading ? (
-              <Loader2 className="animate-spin" size={20} />
-            ) : isLogin ? (
-              <>
-                Unlock Ledger <ArrowRight size={18} />
-              </>
-            ) : (
-              <>
-                Initialize Profile <ArrowRight size={18} />
-              </>
-            )}
-          </button>
-        </form>
-
-        <div style={{ marginTop: '2rem', textAlign: 'center' }}>
-          <button
-            type="button"
-            onClick={() => {
-              setIsLogin(!isLogin);
-              setError('');
-            }}
+            {isLogin ? 'Access the Vault' : 'Initialize Account'}
+          </h2>
+          <p
             style={{
-              background: 'none',
-              border: 'none',
-              color: '#a1a1aa',
-              fontSize: '0.875rem',
-              cursor: 'pointer',
-              textDecoration: 'underline',
-              textUnderlineOffset: '4px',
+              color: '#9ca3af',
+              textAlign: 'center',
+              marginBottom: '32px',
+              fontSize: '15px',
             }}
-            onMouseOver={(e) => (e.currentTarget.style.color = '#fff')}
-            onMouseOut={(e) => (e.currentTarget.style.color = '#a1a1aa')}
           >
             {isLogin
-              ? "Don't have an account? Create one."
-              : 'Already an operator? Authenticate here.'}
-          </button>
+              ? 'Authenticate to view the immutable ledger.'
+              : 'Join RaineBank for real-time alpha signals.'}
+          </p>
+
+          {error && (
+            <div
+              style={{
+                padding: '12px 16px',
+                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                borderLeft: '4px solid #ef4444',
+                borderRadius: '8px',
+                marginBottom: '24px',
+                fontSize: '14px',
+                color: '#fca5a5',
+              }}
+            >
+              {error}
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <div>
+              <label
+                htmlFor="email"
+                style={{
+                  display: 'block',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  marginBottom: '8px',
+                  color: '#9ca3af',
+                }}
+              >
+                INSTITUTIONAL EMAIL
+              </label>
+              <input
+                id="email"
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="operator@fund.com"
+                style={{
+                  width: '100%',
+                  padding: '14px 16px',
+                  backgroundColor: '#0a0a0a',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  borderRadius: '12px',
+                  color: 'white',
+                  fontSize: '15px',
+                  outline: 'none',
+                  transition: 'border-color 0.2s',
+                }}
+                onFocus={(e) => (e.target.style.borderColor = '#38bdf8')}
+                onBlur={(e) => (e.target.style.borderColor = 'rgba(255, 255, 255, 0.1)')}
+              />
+            </div>
+
+            <div>
+              <label
+                htmlFor="password"
+                style={{
+                  display: 'block',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  marginBottom: '8px',
+                  color: '#9ca3af',
+                }}
+              >
+                PASSPHRASE
+              </label>
+              <input
+                id="password"
+                type="password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                style={{
+                  width: '100%',
+                  padding: '14px 16px',
+                  backgroundColor: '#0a0a0a',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  borderRadius: '12px',
+                  color: 'white',
+                  fontSize: '15px',
+                  outline: 'none',
+                  transition: 'border-color 0.2s',
+                }}
+                onFocus={(e) => (e.target.style.borderColor = '#38bdf8')}
+                onBlur={(e) => (e.target.style.borderColor = 'rgba(255, 255, 255, 0.1)')}
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              style={{
+                width: '100%',
+                marginTop: '16px',
+                padding: '16px',
+                backgroundColor: '#fff',
+                color: '#000',
+                border: 'none',
+                borderRadius: '100px',
+                fontSize: '15px',
+                fontWeight: 600,
+                cursor: loading ? 'not-allowed' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                transition: 'opacity 0.2s',
+                opacity: loading ? 0.7 : 1,
+              }}
+              onMouseOver={(e) => {
+                if (!loading) e.currentTarget.style.opacity = '0.9';
+              }}
+              onMouseOut={(e) => {
+                if (!loading) e.currentTarget.style.opacity = '1';
+              }}
+            >
+              {loading ? (
+                <Loader2 className="animate-spin" size={20} />
+              ) : isLogin ? (
+                <>
+                  Unlock Ledger <ArrowRight size={18} />
+                </>
+              ) : (
+                <>
+                  Initialize Profile <ArrowRight size={18} />
+                </>
+              )}
+            </button>
+          </form>
+
+          <div style={{ marginTop: '32px', textAlign: 'center' }}>
+            <button
+              type="button"
+              onClick={() => {
+                setIsLogin(!isLogin);
+                setError('');
+              }}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: '#9ca3af',
+                fontSize: '14px',
+                cursor: 'pointer',
+                textDecoration: 'none',
+              }}
+              onMouseOver={(e) => (e.currentTarget.style.color = '#fff')}
+              onMouseOut={(e) => (e.currentTarget.style.color = '#9ca3af')}
+            >
+              {isLogin
+                ? "Don't have an account? Create one."
+                : 'Already an operator? Authenticate here.'}
+            </button>
+          </div>
         </div>
       </div>
     </div>

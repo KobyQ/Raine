@@ -1,4 +1,6 @@
 import React from 'react';
+import Logo from '@components/Logo';
+import Link from 'next/link';
 
 export const metadata = {
   title: 'API Documentation | RaineBank',
@@ -10,6 +12,16 @@ export default function ApiDocs() {
     <div className="min-h-screen bg-black text-gray-200 py-20 px-6 sm:px-12 font-sans selection:bg-green-500/30">
       <div className="max-w-4xl mx-auto space-y-16">
         
+        {/* Navigation */}
+        <nav className="flex justify-between items-center pb-8 border-b border-gray-800">
+          <Link href="/">
+            <Logo />
+          </Link>
+          <Link href="/dashboard" className="text-gray-400 hover:text-white transition-colors text-sm font-medium">
+            Back to Vault
+          </Link>
+        </nav>
+
         {/* Header */}
         <header className="space-y-4">
           <h1 className="text-4xl md:text-5xl font-bold text-white tracking-tight">

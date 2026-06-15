@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Logo from '@components/Logo';
 
 export default function LandingPage() {
   return (
@@ -27,9 +28,7 @@ export default function LandingPage() {
           boxShadow: '0 8px 32px rgba(0,0,0,0.4)'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '48px' }}>
-            <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.5px', color: '#fff' }}>
-              RaineBank<span style={{ color: '#38bdf8' }}>.</span>
-            </div>
+            <Logo />
             <div style={{ display: 'none', gap: '24px', alignItems: 'center', color: '#9ca3af', fontSize: '14px', fontWeight: 500 }} className="md-flex">
               <span style={{ cursor: 'pointer', transition: 'color 0.2s', ':hover': { color: '#fff' } } as any}>Features</span>
               <span style={{ cursor: 'pointer', transition: 'color 0.2s', ':hover': { color: '#fff' } } as any}>Pricing</span>
@@ -264,9 +263,7 @@ export default function LandingPage() {
         borderTop: '1px solid rgba(255,255,255,0.05)', padding: '48px 24px',
         display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '24px'
       }}>
-        <div style={{ fontSize: 24, fontWeight: 800, letterSpacing: '-0.5px', color: '#fff' }}>
-          RaineBank<span style={{ color: '#38bdf8' }}>.</span>
-        </div>
+        <Logo />
         <div style={{ display: 'flex', gap: '24px', color: '#9ca3af', fontSize: '14px', fontWeight: 500 }}>
           <Link href="/docs" style={{ color: 'inherit', textDecoration: 'none' }}>API Documentation</Link>
           <Link href="/login" style={{ color: 'inherit', textDecoration: 'none' }}>Client Login</Link>
