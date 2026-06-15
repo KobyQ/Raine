@@ -243,6 +243,17 @@ export default function VaultDashboard() {
                   }}>
                     {signal.side}
                   </div>
+                  <div style={{
+                    background: signal.status === 'REJECTED' ? 'rgba(248,113,113,0.1)' : signal.status === 'APPROVED' ? 'rgba(74,222,128,0.1)' : 'rgba(234,179,8,0.1)',
+                    color: signal.status === 'REJECTED' ? '#f87171' : signal.status === 'APPROVED' ? '#4ade80' : '#eab308',
+                    padding: '4px 12px',
+                    borderRadius: '100px',
+                    fontSize: '12px',
+                    fontWeight: 800,
+                    border: `1px solid ${signal.status === 'REJECTED' ? 'rgba(248,113,113,0.3)' : signal.status === 'APPROVED' ? 'rgba(74,222,128,0.3)' : 'rgba(234,179,8,0.3)'}`
+                  }}>
+                    {signal.status}
+                  </div>
                   <div style={{ color: '#9ca3af', fontSize: '14px', fontWeight: 600 }}>{signal.timeframe}</div>
                 </div>
                 <div style={{ color: '#6b7280', fontSize: '13px', fontWeight: 500 }}>
