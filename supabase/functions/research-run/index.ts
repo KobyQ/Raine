@@ -73,33 +73,10 @@ async function evaluateOpportunity(symbol: string, snapshot: LogicContext, timef
     throw new Error("No OpenAI or Azure OpenAI keys found");
   }
 
-  const systemPrompt = `You are a Senior Risk Officer for an institutional trading desk.
-You evaluate mathematically valid setups based on strictly defined rules.
+  const systemPrompt = `You are a Senior Risk Officer for an institutional trading desk. You respond EXCLUSIVELY in raw JSON.
 
-RULES:
-1. PULLBACK setups (BULLISH_PULLBACK or BEARISH_PULLBACK) are your preferred swing trade entries.
-   - For a Pullback LONG, your entry price MUST be BELOW the current price (Buy Limit).
-   - For a Pullback SHORT, your entry price MUST be ABOVE the current price (Sell Limit).
-2. TREND breakouts (BULLISH_TREND or BEARISH_TREND) are accepted only if RSI is not over-extended.
-   - For a Breakout LONG, your entry price MUST be ABOVE the current price (Buy Stop).
-   - For a Breakout SHORT, your entry price MUST be BELOW the current price (Sell Stop).
-3. STOP LOSS LOGIC: The absolute safe volatility boundaries have already been mathematically pre-calculated for you in the snapshot. You MUST NOT calculate this yourself.
-   - For LONG trades, your Stop Loss MUST be strictly LESS THAN OR EQUAL TO the \`safe_long_stop_loss\` provided in the snapshot.
-   - For SHORT trades, your Stop Loss MUST be strictly GREATER THAN OR EQUAL TO the \`safe_short_stop_loss\` provided in the snapshot.
-   - CRITICAL: Do not attempt to do float math. Simply select a Stop Loss value that obeys the pre-calculated boundary condition.
-4. FUNDAMENTAL REALITY CHECK: If \`fundamental_context\` is missing, null, or 'No fundamental news provided.', you MUST base your decision purely on technicals, but explicitly note the lack of macro visibility in your rationale. If \`fundamental_context\` IS provided, you MUST evaluate whether the technical setup contradicts the macro reality.
-   - You MUST explicitly evaluate if the news is BULLISH or BEARISH for the asset.
-   - Example (Oil): A peace pact, reopening of supply routes, or lower institutional price forecasts is strictly BEARISH. You must NOT interpret falling prices as a "bullish stabilization".
-   - If the fundamental reality is BEARISH, you MUST REJECT any LONG setups.
-   - If the fundamental reality is BULLISH, you MUST REJECT any SHORT setups.
-   - NEVER buy a fundamental crash just because the RSI looks cheap or the trend was previously bullish. If the fundamental context invalidates the technical trend, reject the trade.
-5. INSTITUTIONAL RATIONALE REQUIREMENTS: Your rationale must be highly detailed and mature. You must cover all angles of the trade.
-
-Current Market Context:
-${JSON.stringify(snapshot, null, 2)}
-
-6. OUTPUT FORMAT: You MUST respond strictly with a raw JSON object matching the exact schema below. Do not include any markdown formatting (like \`\`\`json), wrapper text, or conversational preambles. 
-CRITICAL: The values referenced inside your rationale object MUST perfectly match the execution_parameters.
+[CRITICAL OUTPUT RULE]
+You MUST respond strictly with a raw JSON object matching the exact schema below. Do not include any markdown formatting (like \`\`\`json), wrapper text, HTML tags, or conversational preambles. If you include anything other than raw JSON, the system breaks.
 
 {
   "setup_valid": boolean,
@@ -111,13 +88,35 @@ CRITICAL: The values referenced inside your rationale object MUST perfectly matc
   },
   "confidence_score": number,
   "institutional_rationale": {
-    "timeframe_context": "Explain how the ${timeframe} impacts the weight of the RSI and setup.",
+    "timeframe_context": "Explain how the timeframe impacts the weight of the RSI and setup.",
     "key_levels": "Define structural boundaries, nearest support/resistance.",
-    "intermarket_context": "Specify EXACT macro correlations (e.g., MUST mention DXY or US10Y for Gold/Forex; do not use generic terms).",
+    "intermarket_context": "Specify EXACT macro correlations relevant to the asset class.",
     "if_then_scenario": "Map out exactly what price action would create/invalidate a valid entry.",
     "confluence_check": "Evaluate moving averages and volume against the RSI. (Mandatory)"
+  },
+  "alternative_setup": {
+    "direction_suggested": "LONG" | "SHORT" | "NONE",
+    "entry_type": "Buy Limit" | "Sell Limit" | "Buy Stop" | "Sell Stop" | "NONE",
+    "suggested_entry_price": number | null,
+    "suggested_stop_loss": number | null,
+    "pivot_rationale": "Explain why a counter-trade works, OR explicitly explain why BOTH long and short are currently untradeable due to structural 'empty air'."
   }
-}`;
+}
+
+[RISK EVALUATION RULES]
+1. PULLBACK setups (BULLISH_PULLBACK or BEARISH_PULLBACK) are your preferred swing trade entries.
+   - For a Pullback LONG, your entry price MUST be logically placed near structural support. Do not leave a massive gap of "empty air" between your entry and the nearest support.
+   - For a Pullback SHORT, your entry price MUST be logically placed near structural resistance.
+2. TREND breakouts (BULLISH_TREND or BEARISH_TREND) are accepted only if RSI is not over-extended.
+3. STOP LOSS LOGIC: The snapshot provides \`safe_long_stop_loss\` and \`safe_short_stop_loss\`. 
+   - If analyzing a short timeframe (e.g., 30min, 1H) and the safe boundary represents a massive move (e.g. >1.5% away), you MUST REJECT the setup entirely due to a "structural timeframe mismatch".
+4. FUNDAMENTAL REALITY CHECK: If \`fundamental_context\` is missing, null, or 'No fundamental news provided.', base your decision purely on technicals.
+   - If fundamental reality is BEARISH, REJECT any LONG setups. If BULLISH, REJECT any SHORT setups.
+5. COUNTER-TREND MOMENTUM CHECK: Do not blindly buy assets that are crashing well below both the 50 EMA and 200 EMA just because RSI is low. REJECT long setups if the asset is in heavy bearish momentum unless price is within 0.1% to 0.25% of a major, higher-timeframe support level.
+6. THE PIVOT RULE: If you REJECT a LONG setup because the asset is in heavy bearish momentum (Rule 5), you MUST immediately evaluate if a valid SHORT setup exists. If current price is also too far from resistance to safely short, you MUST set "direction_suggested" to "NONE" and explain why in the "pivot_rationale".
+
+Current Market Context:
+\${JSON.stringify(snapshot, null, 2)}`;
 
   const direction = snapshot.trend_alignment.startsWith('BULLISH') ? 'LONG (BUY)' : 'SHORT (SELL)';
   const userPrompt = `Evaluate the ${snapshot.trend_alignment} setup for ${symbol} on the ${timeframe} timeframe at current price ${snapshot.current_price} for a potential ${direction} position. Return the required JSON object execution profile.`;
@@ -136,11 +135,11 @@ CRITICAL: The values referenced inside your rationale object MUST perfectly matc
           type: "object",
           properties: {
             setup_valid: { type: "boolean" },
-            action: { type: "string" },
+            action: { type: "string", enum: ["APPROVED", "REJECTED"] },
             execution_parameters: {
               type: "object",
               properties: {
-                entry_type: { type: "string" },
+                entry_type: { type: "string", enum: ["Buy Limit", "Sell Limit", "Buy Stop", "Sell Stop", "NONE"] },
                 suggested_entry_price: { type: ["number", "null"] },
                 suggested_stop_loss: { type: ["number", "null"] }
               },
@@ -159,9 +158,21 @@ CRITICAL: The values referenced inside your rationale object MUST perfectly matc
               },
               required: ["timeframe_context", "key_levels", "intermarket_context", "if_then_scenario", "confluence_check"],
               additionalProperties: false
+            },
+            alternative_setup: {
+              type: "object",
+              properties: {
+                direction_suggested: { type: "string", enum: ["LONG", "SHORT", "NONE"] },
+                entry_type: { type: "string", enum: ["Buy Limit", "Sell Limit", "Buy Stop", "Sell Stop", "NONE"] },
+                suggested_entry_price: { type: ["number", "null"] },
+                suggested_stop_loss: { type: ["number", "null"] },
+                pivot_rationale: { type: "string" }
+              },
+              required: ["direction_suggested", "entry_type", "suggested_entry_price", "suggested_stop_loss", "pivot_rationale"],
+              additionalProperties: false
             }
           },
-          required: ["setup_valid", "action", "execution_parameters", "confidence_score", "institutional_rationale"],
+          required: ["setup_valid", "action", "execution_parameters", "confidence_score", "institutional_rationale", "alternative_setup"],
           additionalProperties: false
         },
         strict: true
@@ -382,6 +393,23 @@ serve((req) => {
             const expectedReturn = Math.abs(take_profit - entry_price) * qty;
             const rrRatio = riskAmount > 0 ? expectedReturn / riskAmount : 0;
             const expectedReturnPct = expectedReturn / entry_price;
+            
+            const stopLossPercentage = risk / entry_price;
+            let maxAllowedRiskPct = 0.05; // 5% default for macro
+            if (timeframe.toLowerCase().includes("min") || timeframe.toLowerCase().includes("h")) {
+              maxAllowedRiskPct = 0.015; // 1.5% max for intraday
+            }
+
+            if (stopLossPercentage > maxAllowedRiskPct) {
+              console.log(`[Layer C: Execution Desk] REJECTED ${symbol}: Stop loss percentage (${(stopLossPercentage*100).toFixed(2)}%) exceeds allowed maximum of ${(maxAllowedRiskPct*100).toFixed(2)}% for timeframe ${timeframe}.`);
+              sendEvent({ type: 'progress', message: `[Layer C: Execution Desk] REJECTED: Structural mismatch. Stop loss (${(stopLossPercentage*100).toFixed(2)}%) too wide for ${timeframe}.` });
+              rejections.push({
+                symbol,
+                reason: `Structural timeframe mismatch: A stop loss of ${(stopLossPercentage*100).toFixed(2)}% is too wide for an intraday timeframe (${timeframe}). Max allowed is ${(maxAllowedRiskPct*100).toFixed(2)}%.`,
+                layer: "Execution Desk"
+              });
+              continue;
+            }
 
             if (!riskValidation.valid) {
               console.log(`[Layer C: Risk Manager] REJECTED ${symbol}: ${riskValidation.reason}`);
