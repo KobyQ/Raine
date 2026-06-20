@@ -19,6 +19,9 @@ create policy "Users can view their own subscription status"
     to authenticated
     using ( auth.uid() = user_id );
 
+-- Grants
+grant select, insert, update, delete on public.user_subscriptions to authenticated, service_role;
+
 -- Create trigger to automatically create a subscription row when a user signs up
 create or replace function public.handle_new_user_subscription()
 returns trigger as $$
