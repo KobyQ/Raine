@@ -12,6 +12,9 @@ export async function middleware(request: NextRequest) {
     process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
+      cookieOptions: {
+        name: 'sb-ai-trading-auth'
+      },
       cookies: {
         get(name: string) {
           return request.cookies.get(name)?.value;

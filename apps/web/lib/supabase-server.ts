@@ -8,6 +8,9 @@ export function supabaseServer() {
   const cookieStore = cookies();
 
   return createServerClient(url, key, {
+    cookieOptions: {
+      name: 'sb-ai-trading-auth'
+    },
     cookies: {
       get(name: string) {
         return cookieStore.get(name)?.value;

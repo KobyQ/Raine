@@ -20,7 +20,7 @@ export async function GET(request: Request) {
 
   // We use the service role key to securely bypass RLS/table permissions when fetching
   const adminClient = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 
