@@ -90,11 +90,61 @@ export async function fetchPaperBars(symbol: string, timeframe = '1D', limit = 3
   const isForexOrCrypto = symbol === 'XAUUSD' || symbol === 'UKOIL' || symbol.includes('USD') || symbol.includes('/');
   
   if (isForexOrCrypto) {
+    // 1. Try MetaTrader (MetaApi) First if configured
+    const metaToken = Deno.env.get("META_API_TOKEN");
+    const metaAccountId = Deno.env.get("META_API_ACCOUNT_ID");
+    
+    if (metaToken && metaAccountId) {
+      try {
+        let metaTimeframe = '1d';
+        if (timeframe === '1D') metaTimeframe = '1d';
+        else if (timeframe === '1H') metaTimeframe = '1h';
+        else if (timeframe === '15Min') metaTimeframe = '15m';
+
+        const baseUrl = Deno.env.get("META_API_BASE_URL") || "https://mt-client-api-v1.new-york.agiliumtrade.ai";
+        const marketDataUrl = baseUrl.replace("mt-client-api-v1", "mt-market-data-client-api-v1");
+        const metaUrl = `${marketDataUrl}/users/current/accounts/${metaAccountId}/historical-market-data/symbols/${symbol}/timeframes/${metaTimeframe}/candles?limit=${limit}`;
+        
+        const metaRes = await fetch(metaUrl, {
+          headers: { 'auth-token': metaToken }
+        });
+
+        if (metaRes.ok) {
+          const metaCandles = await metaRes.json();
+          const bars: Bar[] = metaCandles.map((c: any) => ({
+            t: new Date(c.time).toISOString(),
+            o: c.open,
+            h: c.high,
+            l: c.low,
+            c: c.close,
+            v: c.tickVolume || c.volume || 0
+          })).sort((a: Bar, b: Bar) => new Date(a.t).getTime() - new Date(b.t).getTime());
+
+          if (bars.length > 0) {
+            console.log(`[Data Fetch] Pulled ${bars.length} bars from MetaTrader Broker Feed for ${symbol}`);
+            return bars;
+          }
+        } else {
+          console.warn(`MetaApi returned ${metaRes.status} for ${symbol}. Falling back to Yahoo Finance.`);
+        }
+      } catch (err) {
+        console.warn(`MetaApi fetch failed for ${symbol}:`, err);
+      }
+    }
+
+    // 2. Fallback to Yahoo Finance (ONLY IN DEV MODE)
+    const isDev = Deno.env.get("ENV") === "development" || Deno.env.get("NODE_ENV") === "development";
+    if (!isDev) {
+      throw new Error(`Data feed failure for ${symbol}. Yahoo Finance fallback is disabled in production to prevent misaligned execution.`);
+    }
+    console.warn(`Falling back to Yahoo Finance for ${symbol} (Development Mode)...`);
     let yfSymbol = symbol;
     const isCrypto = symbol.startsWith('BTC') || symbol.startsWith('ETH') || symbol.startsWith('SOL');
 
-    if (symbol === 'XAUUSD' || symbol === 'XAU/USD') {
+    if (symbol.startsWith('XAUUSD') || symbol === 'XAU/USD') {
       yfSymbol = 'GC=F'; // Gold Futures as proxy for spot XAUUSD
+    } else if (symbol.startsWith('XAGUSD') || symbol === 'XAG/USD') {
+      yfSymbol = 'SI=F'; // Silver Futures as proxy for spot XAGUSD
     } else if (symbol === 'UKOIL') {
       yfSymbol = 'BZ=F'; // Brent Crude Oil Futures as proxy for UKOIL
     } else if (isCrypto && symbol.endsWith('USD')) {
