@@ -89,17 +89,17 @@ You MUST respond strictly with a raw JSON object matching the exact schema below
   "confidence_score": number,
   "institutional_rationale": {
     "timeframe_context": "Explain how the timeframe impacts the weight of the RSI and setup.",
-    "key_levels": "Define structural boundaries, nearest support/resistance.",
+    "key_levels": "Define structural boundaries AND explicitly state the current price relative to those levels (e.g., 'At the current price of 4015, the asset is trapped between support at 3980 and resistance at 4050').",
     "intermarket_context": "Specify EXACT macro correlations. If fundamental sentiment contradicts technical trends (e.g., bearish macro vs bullish EMAs), you MUST explicitly state which force you expect to win and why.",
     "if_then_scenario": "Map out exactly what price action would create/invalidate a valid entry. Do NOT be vague. Specify the exact lower-timeframe trigger required at your entry level (e.g., 'bullish engulfing candle', '1H market structure shift').",
-    "confluence_check": "Evaluate moving averages and volume against the RSI. You MUST project what the RSI should ideally look like when price actually reaches your entry level (e.g., 'RSI should drop below 30 into oversold')."
+    "confluence_check": "State exactly where the current price is relative to the 50/200 EMAs to validate your momentum thesis. Project what the RSI should ideally look like when price reaches your entry level. Do NOT repeat the RSI or EMA conditions across multiple sentences."
   },
   "alternative_setup": {
     "direction_suggested": "LONG" | "SHORT" | "NONE",
     "entry_type": "Buy Limit" | "Sell Limit" | "Buy Stop" | "Sell Stop" | "NONE",
     "suggested_entry_price": number | null,
     "suggested_stop_loss": number | null,
-    "pivot_rationale": "Explain why a counter-trade works, OR explicitly explain why BOTH long and short are currently untradeable due to structural 'empty air'."
+    "pivot_rationale": "Focus ONLY on the alternative setup (do not restate the primary rejection). Explain why the counter-trade works and explicitly define a lower-timeframe price action trigger required at your entry level (e.g. 'Wait for a 1H bearish pin bar at 4050 before shorting'). OR explicitly explain why BOTH directions are untradeable due to structural 'empty air'."
   }
 }
 
@@ -119,7 +119,10 @@ You MUST respond strictly with a raw JSON object matching the exact schema below
    - Strict Technical Definitions: Price > 50 EMA and > 200 EMA = BULLISH momentum. Price < 50 EMA and < 200 EMA = BEARISH momentum. Do not contradict this.
    - Do not blindly buy assets that are crashing well below both the 50 EMA and 200 EMA just because RSI is low. REJECT long setups if the asset is in heavy bearish momentum unless price is within 0.1% to 0.25% of a major, higher-timeframe support level.
 6. THE PIVOT RULE: If you REJECT a LONG setup because the asset is in heavy bearish momentum (Rule 5), you MUST immediately evaluate if a valid SHORT setup exists. If current price is also too far from resistance to safely short, you MUST set "direction_suggested" to "NONE" and explain why in the "pivot_rationale".
-
+7. INSTITUTIONAL TONE: 
+   - Never use apologetic, weak, or observational phrasing regarding missing data. If fundamental data is missing, do NOT claim there is a "lack of fundamental catalysts" (as macro is always active). Instead, dictate authoritatively: "Without fundamental context, this must be treated as a purely technical setup."
+   - Write with bulletproof brevity. Do not repeat your rationale (e.g., do not state 'distance to support is too great' twice in the same paragraph). Combine your thoughts into a single, sharp thesis.
+8. RSI DYNAMICS IN TRENDS: In a strong uptrend (Price > 50 EMA and > 200 EMA), the daily RSI rarely drops all the way to 30. A pullback to the 40-45 range is typically sufficient to reset momentum. Do NOT demand a drop to 30 if the asset is in heavy bullish momentum.
 Current Market Context:
 \${JSON.stringify(snapshot, null, 2)}`;
 
@@ -203,7 +206,8 @@ Current Market Context:
  */
 serve((req) => {
   const { searchParams } = new URL(req.url);
-  const timeframe = searchParams.get("timeframe") ?? "1D";
+  const isCron = req.method === "POST";
+  const timeframe = searchParams.get("timeframe") ?? (isCron ? "1H" : "1D");
   const modelId = searchParams.get("model_id") ?? undefined;
   const modelVersion = searchParams.get("model_version") ?? undefined;
   const newsContext = searchParams.get("news") ?? undefined;
