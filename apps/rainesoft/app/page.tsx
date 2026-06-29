@@ -10,12 +10,8 @@ export default function Home() {
       {/* Corporate Navigation */}
       <nav className="glass-nav" style={{ position: 'sticky', top: 0, zIndex: 50 }}>
         <div className="container" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: '80px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            {/* Logo placeholder */}
-            <div style={{ width: '32px', height: '32px', background: 'var(--accent-primary)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5"><path d="M12 2L2 22h20L12 2z"/></svg>
-            </div>
-            <span style={{ fontSize: '20px', fontWeight: 800, letterSpacing: '-0.5px', color: '#fff' }}>RaineSoft Solutions</span>
+          <div style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+            <img src="/logo_text_white.png" alt="RaineSoft Solutions" style={{ height: '32px', width: 'auto' }} />
           </div>
           
           <div style={{ display: 'flex', gap: '32px', alignItems: 'center', fontSize: '14px', fontWeight: 500, color: 'var(--text-secondary)' }}>
@@ -186,11 +182,8 @@ export default function Home() {
       {/* Corporate Footer */}
       <footer style={{ borderTop: '1px solid var(--border-subtle)', padding: '64px 24px', background: 'var(--bg-primary)' }}>
         <div className="container" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '32px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <div style={{ width: '24px', height: '24px', background: 'var(--accent-primary)', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5"><path d="M12 2L2 22h20L12 2z"/></svg>
-            </div>
-            <span style={{ fontSize: '18px', fontWeight: 800, letterSpacing: '-0.5px', color: '#fff' }}>RaineSoft Solutions</span>
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            <img src="/logo_text_white.png" alt="RaineSoft Solutions" style={{ height: '28px', width: 'auto', opacity: 0.9 }} />
           </div>
           
           <div style={{ display: 'flex', gap: '32px', color: 'var(--text-secondary)', fontSize: '14px', fontWeight: 500 }}>
