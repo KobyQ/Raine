@@ -217,7 +217,7 @@ Current Market Context:
 serve((req) => {
   const { searchParams } = new URL(req.url);
   const isCron = req.method === "POST";
-  const timeframe = searchParams.get("timeframe") ?? (isCron ? "1H" : "1D");
+  const timeframe = searchParams.get("timeframe") ?? (isCron ? "4H" : "1D");
   const modelId = searchParams.get("model_id") ?? undefined;
   const modelVersion = searchParams.get("model_version") ?? undefined;
   const newsContext = searchParams.get("news") ?? undefined;
