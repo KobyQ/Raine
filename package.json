@@ -19,6 +19,7 @@
     "dev:backend": "supabase start && supabase functions serve --no-verify-jwt --env-file .env",
     "dev:all": "docker-compose down && supabase start && (supabase functions serve --no-verify-jwt --env-file .env & pnpm --filter @ai-trading/rainebank dev)",
     "start:docker": "supabase start && (supabase functions serve --no-verify-jwt --env-file .env & docker compose up --build)",
+    "deploy:prod": "supabase db push && supabase functions deploy && supabase postgres-config update --config app.settings.edge_function_url=https://ktezlusdkqlfdwqrldtn.supabase.co",
     "lint": "pnpm -r lint",
     "test": "pnpm -r test"
   }
