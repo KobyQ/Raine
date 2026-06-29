@@ -1,6 +1,6 @@
 # RaineBank Alpha Engine 🏦
 
-An institutional-grade, fully autonomous algorithmic trading system and B2B/B2C SaaS platform. 
+An institutional-grade, fully autonomous algorithmic trading system and B2B/B2C SaaS platform built and maintained by **RaineSoft Solutions**.
 
 The RaineBank Engine is designed to identify structural market setups, mathematically evaluate risk via an AI Risk Officer, autonomously execute trades on live brokerages, and automatically market its performance to scale a retail and institutional subscriber base.
 
@@ -86,4 +86,4 @@ The system is engineered to run completely hands-off, managing its own execution
    ```
 
 ---
-*Built by KobyQ. The machine now speaks.*
+*Built by RaineSoft Solutions. The machine now speaks.*
