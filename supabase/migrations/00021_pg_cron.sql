@@ -25,6 +25,13 @@ select cron.schedule(
   $$ select net.http_post(url := 'http://kong:8000/functions/v1/exness-monitor', headers := '{"Content-Type": "application/json"}'::jsonb); $$
 );
 
+-- Outcome Resolution Loop (Self-Learning) at 2 and 32 minutes past the hour
+select cron.schedule(
+  'resolve_outcomes',
+  '2,32 * * * *',
+  $$ select net.http_post(url := 'http://kong:8000/functions/v1/resolve-outcomes', headers := '{"Content-Type": "application/json"}'::jsonb); $$
+);
+
 -- Monitor open trades during the regular session (14:30-21:00 GMT)
 -- 14:30-14:59 every minute
 select cron.schedule(

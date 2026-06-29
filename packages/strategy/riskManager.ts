@@ -5,53 +5,67 @@ export type RiskValidationResult = {
   reason?: string;
 };
 
-export async function validateExposure(
+// Validates if the central AI is allowed to generate a new signal for this asset
+export async function validateGlobalSignal(
   supabase: SupabaseClient,
   symbol: string
 ): Promise<RiskValidationResult> {
-  // 1. Fetch active trades (status = APPROVED)
-  const { data: openTrades, error: openError } = await supabase
+  // Fetch active and pending signals
+  const { data: activeSignals, error: activeError } = await supabase
     .from("trade_opportunities")
     .select("symbol")
-    .eq("status", "APPROVED");
+    .in("status", ["APPROVED", "PENDING_APPROVAL"]);
 
-  if (openError) {
-    return { valid: false, reason: "Risk Check Failed: Could not query open trades" };
+  if (activeError) {
+    return { valid: false, reason: "Risk Check Failed: Could not query active signals" };
   }
 
-  // Guardrail 1: Max Open Trades (Max 2)
-  if (openTrades && openTrades.length >= 2) {
-    return { valid: false, reason: "REJECTED: Max global active trades (2) reached" };
-  }
-
-  // Guardrail 2: Asset Isolation
-  if (openTrades && openTrades.some(t => t.symbol === symbol)) {
-    return { valid: false, reason: `REJECTED: Asset isolation enforced. Position already open for ${symbol}` };
-  }
-
-  // Guardrail 3: Daily Cooldown (Max 2 consecutive losses today)
-  // Calculate Start of Day (UTC)
-  const now = new Date();
-  const startOfDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0));
-
-  const { data: recentClosedTrades, error: closedError } = await supabase
-    .from("trade_opportunities")
-    .select("status")
-    .in("status", ["WON", "LOST"])
-    .gte("closed_at", startOfDay.toISOString())
-    .order("closed_at", { ascending: false })
-    .limit(2);
-
-  if (closedError) {
-    return { valid: false, reason: "Risk Check Failed: Could not query recent closed trades" };
-  }
-
-  if (recentClosedTrades && recentClosedTrades.length === 2) {
-    const bothLost = recentClosedTrades.every(t => t.status === "LOST");
-    if (bothLost) {
-      return { valid: false, reason: "REJECTED: Daily Cooldown Active (2 consecutive losses today)" };
-    }
+  // Guardrail: Asset Isolation (Don't spam multiple signals for the same asset)
+  if (activeSignals && activeSignals.some(t => t.symbol === symbol)) {
+    return { valid: false, reason: `REJECTED: Asset isolation enforced. Signal already active for ${symbol}` };
   }
 
   return { valid: true };
 }
+
+// Validates if a specific user can take a new trade based on their personal heat cap
+export async function validateUserExposure(
+  supabase: SupabaseClient,
+  userId: string,
+  newRiskAmount: number
+): Promise<RiskValidationResult> {
+  // Fetch user's active trades to calculate current heat
+  const { data: userTrades, error: tradesError } = await supabase
+    .from("user_trades")
+    .select("risk_amount")
+    .in("status", ["OPEN", "PENDING"]);
+
+  if (tradesError) {
+    return { valid: false, reason: "Failed to query user trades" };
+  }
+
+  // Fetch user's risk settings
+  const { data: settings, error: settingsError } = await supabase
+    .from("user_risk_settings")
+    .select("portfolio_capital, max_portfolio_heat_pct")
+    .eq("user_id", userId)
+    .single();
+
+  if (settingsError || !settings) {
+    return { valid: false, reason: "User risk settings not found" };
+  }
+
+  let currentHeat = 0;
+  if (userTrades) {
+    currentHeat = userTrades.reduce((sum, trade) => sum + Number(trade.risk_amount), 0);
+  }
+
+  const maxHeat = Number(settings.portfolio_capital) * Number(settings.max_portfolio_heat_pct);
+
+  if ((currentHeat + newRiskAmount) > maxHeat) {
+    return { valid: false, reason: `REJECTED: Portfolio Heat limit (${Number(settings.max_portfolio_heat_pct) * 100}%) exceeded.` };
+  }
+
+  return { valid: true };
+}
+

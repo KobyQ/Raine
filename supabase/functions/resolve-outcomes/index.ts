@@ -52,37 +52,75 @@ serve(async (req) => {
     let outcome: 'WON' | 'LOST' | null = null;
     let rMultiple = 0;
     let closedAt = null;
+    let state: 'PENDING' | 'ACTIVE' = 'PENDING';
+
+    const entryPrice = entry_plan_json.price;
 
     for (const candle of candles) {
       if (side === 'BULLISH' || side === 'LONG') {
-        // Did the candle hit SL?
-        if (candle.l <= stopLoss) {
-          outcome = 'LOST';
-          rMultiple = -1.0;
-          closedAt = candle.ts;
-          break; // Stop evaluating
+        if (state === 'PENDING') {
+          // Has price dropped to or below our Buy Limit/Stop?
+          // (For simplicity, if candle low is <= entry and candle high is >= entry, it triggered).
+          if (candle.l <= entryPrice && candle.h >= entryPrice || 
+              (entry_plan_json.type?.includes("Limit") ? candle.l <= entryPrice : candle.h >= entryPrice)) {
+            state = 'ACTIVE';
+          }
         }
-        // Did the candle hit TP?
-        else if (candle.h >= takeProfit) {
-          outcome = 'WON';
-          rMultiple = 2.0; // Enforcing 1:2 strict R/R baseline
-          closedAt = candle.ts;
-          break;
+
+        if (state === 'ACTIVE') {
+          // Conservative Resolution: If candle spans both TP and SL, assume LOSS
+          if (candle.l <= stopLoss && candle.h >= takeProfit) {
+            outcome = 'LOST';
+            rMultiple = -1.0;
+            closedAt = candle.ts;
+            break;
+          }
+          // Did the candle hit SL?
+          if (candle.l <= stopLoss) {
+            outcome = 'LOST';
+            rMultiple = -1.0;
+            closedAt = candle.ts;
+            break;
+          }
+          // Did the candle hit TP?
+          else if (candle.h >= takeProfit) {
+            outcome = 'WON';
+            rMultiple = 2.0; // Enforcing 1:2 strict R/R baseline
+            closedAt = candle.ts;
+            break;
+          }
         }
       } else if (side === 'BEARISH' || side === 'SHORT') {
-        // Did the candle hit SL?
-        if (candle.h >= stopLoss) {
-          outcome = 'LOST';
-          rMultiple = -1.0;
-          closedAt = candle.ts;
-          break;
+        if (state === 'PENDING') {
+          // Has price risen to or above our Sell Limit/Stop?
+          if (candle.h >= entryPrice && candle.l <= entryPrice ||
+              (entry_plan_json.type?.includes("Limit") ? candle.h >= entryPrice : candle.l <= entryPrice)) {
+            state = 'ACTIVE';
+          }
         }
-        // Did the candle hit TP?
-        else if (candle.l <= takeProfit) {
-          outcome = 'WON';
-          rMultiple = 2.0;
-          closedAt = candle.ts;
-          break;
+
+        if (state === 'ACTIVE') {
+          // Conservative Resolution: If candle spans both TP and SL, assume LOSS
+          if (candle.h >= stopLoss && candle.l <= takeProfit) {
+            outcome = 'LOST';
+            rMultiple = -1.0;
+            closedAt = candle.ts;
+            break;
+          }
+          // Did the candle hit SL?
+          if (candle.h >= stopLoss) {
+            outcome = 'LOST';
+            rMultiple = -1.0;
+            closedAt = candle.ts;
+            break;
+          }
+          // Did the candle hit TP?
+          else if (candle.l <= takeProfit) {
+            outcome = 'WON';
+            rMultiple = 2.0;
+            closedAt = candle.ts;
+            break;
+          }
         }
       }
     }

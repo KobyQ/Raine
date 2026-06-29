@@ -5,7 +5,7 @@ import { sma, rsi, detectRegime } from "../_shared/strategy.ts";
 import { insertAuditLog } from "../_shared/audit.ts";
 import { netEdge, transactionCost, slippage } from "../../../packages/strategy/index.ts";
 import { getContextSnapshot, LogicContext } from "../../../packages/strategy/indicators.ts";
-import { validateExposure } from "../../../packages/strategy/riskManager.ts";
+import { validateGlobalSignal } from "../../../packages/strategy/riskManager.ts";
 import OpenAI from "npm:openai";
 
 async function hashBar(b: Bar) {
@@ -84,14 +84,16 @@ You MUST respond strictly with a raw JSON object matching the exact schema below
   "execution_parameters": {
     "entry_type": "Buy Limit" | "Sell Limit" | "Buy Stop" | "Sell Stop" | "NONE",
     "suggested_entry_price": number | null,
-    "suggested_stop_loss": number | null
+    "suggested_stop_loss": number | null,
+    "suggested_take_profit": number | null
   },
   "confidence_score": number,
   "institutional_rationale": {
     "timeframe_context": "Explain how the timeframe impacts the weight of the RSI and setup.",
     "key_levels": "Define structural boundaries AND explicitly state the current price relative to those levels (e.g., 'At the current price of 4015, the asset is trapped between support at 3980 and resistance at 4050').",
+    "fundamental_catalyst": "Synthesize the provided news headlines. If there is macroeconomic news (e.g. CPI, Fed Rate), explicitly state how it supports or invalidates the technical setup. DO NOT use the phrase 'Without fundamental context'.",
     "intermarket_context": "Specify EXACT macro correlations. If fundamental sentiment contradicts technical trends (e.g., bearish macro vs bullish EMAs), you MUST explicitly state which force you expect to win and why.",
-    "if_then_scenario": "Map out exactly what price action would create/invalidate a valid entry. Do NOT be vague. Specify the exact lower-timeframe trigger required at your entry level (e.g., 'bullish engulfing candle', '1H market structure shift').",
+    "if_then_scenario": "Map out exactly what price action would create/invalidate a valid entry. Do NOT be vague. If analyzing a 1D or 4H chart, you MUST specify a lower-timeframe execution trigger (e.g., 'Wait for a 1H bullish engulfing candle' or '15m market structure shift') at your entry level to keep stops tight.",
     "confluence_check": "State exactly where the current price is relative to the 50/200 EMAs to validate your momentum thesis. Project what the RSI should ideally look like when price reaches your entry level. Do NOT repeat the RSI or EMA conditions across multiple sentences."
   },
   "alternative_setup": {
@@ -99,20 +101,20 @@ You MUST respond strictly with a raw JSON object matching the exact schema below
     "entry_type": "Buy Limit" | "Sell Limit" | "Buy Stop" | "Sell Stop" | "NONE",
     "suggested_entry_price": number | null,
     "suggested_stop_loss": number | null,
-    "pivot_rationale": "Focus ONLY on the alternative setup (do not restate the primary rejection). Explain why the counter-trade works and explicitly define a lower-timeframe price action trigger required at your entry level (e.g. 'Wait for a 1H bearish pin bar at 4050 before shorting'). OR explicitly explain why BOTH directions are untradeable due to structural 'empty air'."
+    "suggested_take_profit": number | null,
+    "pivot_rationale": "Focus ONLY on the alternative setup. Explain why the counter-trade works, specify a structural Take Profit target, and explicitly define a lower-timeframe price action trigger required at your entry level (e.g. 'Wait for a 1H bearish pin bar at 4050 before shorting'). OR explicitly explain why BOTH directions are untradeable due to structural 'empty air'."
   }
 }
 
 [RISK EVALUATION RULES]
 1. PULLBACK setups (BULLISH_PULLBACK or BEARISH_PULLBACK) are your preferred swing trade entries.
-   - For a Pullback LONG, your entry price MUST be placed precisely ON or slightly BELOW the nearest structural support. Do not buy ahead of support (e.g., half-way between current price and support) as this exposes the trade to unnecessary drawdown.
-   - For a Pullback SHORT, your entry price MUST be placed precisely ON or slightly ABOVE structural resistance.
+   - For a Pullback LONG, your entry price MUST be placed precisely ON or slightly BELOW the nearest structural support. Do not buy ahead of support. Your Take Profit MUST be set at the next major structural resistance.
+   - For a Pullback SHORT, your entry price MUST be placed precisely ON or slightly ABOVE structural resistance. Your Take Profit MUST be set at the next major structural support.
 2. TREND breakouts (BULLISH_TREND or BEARISH_TREND) are accepted only if RSI is not over-extended.
 3. STOP LOSS & VOLATILITY (ATR): The snapshot provides \`safe_long_stop_loss\`, \`safe_short_stop_loss\`, and \`atr_14\`. 
    - Your \`suggested_stop_loss\` MUST exactly match the price point at which your setup is technically invalidated.
-   - VOLATILITY CHECK: Your stop loss distance MUST be wide enough to survive the \`atr_14\` (Average True Range) for this timeframe. A microscopic stop loss (e.g., $5 on a 1D Gold chart where ATR is massive) will be destroyed by market noise. You MUST size your stop loss relative to the ATR.
-   - If analyzing a short timeframe (e.g., 30min, 1H) and the safe boundary represents a massive move (e.g. >1.5% away), you MUST REJECT the setup entirely due to a "structural timeframe mismatch".
-4. FUNDAMENTAL REALITY CHECK: If \`fundamental_context\` is missing, null, or 'No fundamental news provided.', base your decision purely on technicals.
+   - VOLATILITY CHECK: Your stop loss distance MUST be wide enough to survive the \`atr_14\` (Average True Range).
+4. FUNDAMENTAL REALITY CHECK: You MUST heavily weigh the provided \`fundamental_context\`. If significant macro news opposes the technical setup, REJECT the setup immediately. If no major news exists, explicitly note that the market is driven by technicals, but NEVER say 'Without fundamental context'.
    - Do NOT invent generic macro platitudes (like 'geopolitical tensions' or 'inflation'). If you assess the macro environment, focus on the actual dominant drivers pushing the asset's current trend (e.g. hawkish Fed policy, strong DXY causing a massive drop).
    - If fundamental reality is BEARISH, REJECT any LONG setups. If BULLISH, REJECT any SHORT setups.
 5. COUNTER-TREND MOMENTUM CHECK: 
@@ -149,9 +151,10 @@ Current Market Context:
               properties: {
                 entry_type: { type: "string", enum: ["Buy Limit", "Sell Limit", "Buy Stop", "Sell Stop", "NONE"] },
                 suggested_entry_price: { type: ["number", "null"] },
-                suggested_stop_loss: { type: ["number", "null"] }
+                suggested_stop_loss: { type: ["number", "null"] },
+                suggested_take_profit: { type: ["number", "null"] }
               },
-              required: ["entry_type", "suggested_entry_price", "suggested_stop_loss"],
+              required: ["entry_type", "suggested_entry_price", "suggested_stop_loss", "suggested_take_profit"],
               additionalProperties: false
             },
             confidence_score: { type: "number" },
@@ -160,11 +163,12 @@ Current Market Context:
               properties: {
                 timeframe_context: { type: "string" },
                 key_levels: { type: "string" },
+                fundamental_catalyst: { type: "string" },
                 intermarket_context: { type: "string" },
                 if_then_scenario: { type: "string" },
                 confluence_check: { type: "string" }
               },
-              required: ["timeframe_context", "key_levels", "intermarket_context", "if_then_scenario", "confluence_check"],
+              required: ["timeframe_context", "key_levels", "fundamental_catalyst", "intermarket_context", "if_then_scenario", "confluence_check"],
               additionalProperties: false
             },
             alternative_setup: {
@@ -174,9 +178,10 @@ Current Market Context:
                 entry_type: { type: "string", enum: ["Buy Limit", "Sell Limit", "Buy Stop", "Sell Stop", "NONE"] },
                 suggested_entry_price: { type: ["number", "null"] },
                 suggested_stop_loss: { type: ["number", "null"] },
+                suggested_take_profit: { type: ["number", "null"] },
                 pivot_rationale: { type: "string" }
               },
-              required: ["direction_suggested", "entry_type", "suggested_entry_price", "suggested_stop_loss", "pivot_rationale"],
+              required: ["direction_suggested", "entry_type", "suggested_entry_price", "suggested_stop_loss", "suggested_take_profit", "pivot_rationale"],
               additionalProperties: false
             }
           },
@@ -389,32 +394,34 @@ serve((req) => {
                 reason: institutional_rationale,
                 layer: "Cognitive AI"
               });
+              await supabase.from("trade_opportunities").insert({
+                symbol,
+                side: dbSide,
+                timeframe: timeframe.toLowerCase(),
+                status: "REJECTED",
+                ai_summary: institutional_rationale,
+                ai_risks: "Rejected by AI Risk Officer",
+                model_id: modelId,
+                model_version: modelVersion,
+                risk_summary: `RSI ${snapshot.rsi_14}`
+              });
               continue;
             }
 
             console.log(`[Layer B: Cognitive Guard] APPROVED ${symbol} by AI Risk Officer.`);
             sendEvent({ type: 'progress', message: `[Layer B: Cognitive Guard] APPROVED by AI Risk Officer.` });
 
-            // LAYER C: Risk Manager (The Kill Switch)
-            sendEvent({ type: 'progress', message: `[Layer C: Risk Manager] Validating exposure and portfolio allocation...` });
-            const riskValidation = await validateExposure(supabase, symbol);
-
             // LAYER C: Deterministic Risk/Reward Math (Force exactly 1:2 R:R)
             const risk = Math.abs(entry_price - stop_loss);
             const take_profit = dbSide === 'LONG' ? entry_price + (risk * 2) : entry_price - (risk * 2);
 
-            const qty = 100;
-            const commission = 0.01;
-            const slippageBps = 5;
-            const grossEdge = dbSide === 'LONG' ? take_profit - entry_price : entry_price - take_profit;
-            const txCost = transactionCost(qty, commission);
-            const slip = slippage(entry_price, qty, slippageBps);
-            const net = netEdge(grossEdge, entry_price, qty, commission, slippageBps);
+            // AI is now a pure signal generator. We don't calculate user-specific volume or riskAmount here.
             
-            const riskAmount = Math.abs(entry_price - stop_loss) * qty;
-            const expectedReturn = Math.abs(take_profit - entry_price) * qty;
-            const rrRatio = riskAmount > 0 ? expectedReturn / riskAmount : 0;
-            const expectedReturnPct = expectedReturn / entry_price;
+            // LAYER C: Risk Manager (Global Asset Isolation)
+            sendEvent({ type: 'progress', message: `[Layer C: Risk Manager] Validating global signal constraints...` });
+            const riskValidation = await validateGlobalSignal(supabase, symbol);
+            const rrRatio = 2.0; // Mathematically forced above
+            const expectedReturnPct = Math.abs(take_profit - entry_price) / entry_price;
             
             const stopLossPercentage = risk / entry_price;
             let maxAllowedRiskPct = 0.05; // 5% default for macro
@@ -429,6 +436,17 @@ serve((req) => {
                 symbol,
                 reason: `Structural timeframe mismatch: A stop loss of ${(stopLossPercentage*100).toFixed(2)}% is too wide for an intraday timeframe (${timeframe}). Max allowed is ${(maxAllowedRiskPct*100).toFixed(2)}%.`,
                 layer: "Execution Desk"
+              });
+              await supabase.from("trade_opportunities").insert({
+                symbol,
+                side: dbSide,
+                timeframe: timeframe.toLowerCase(),
+                status: "REJECTED",
+                ai_summary: institutional_rationale,
+                ai_risks: `Stop loss ${(stopLossPercentage*100).toFixed(2)}% exceeds max ${(maxAllowedRiskPct*100).toFixed(2)}%`,
+                model_id: modelId,
+                model_version: modelVersion,
+                risk_summary: `RSI ${snapshot.rsi_14}`
               });
               continue;
             }
@@ -450,19 +468,16 @@ serve((req) => {
                 rationale: institutional_rationale,
                 layer: "Risk Manager"
               });
-              continue;
-            }
-
-            console.log(`\n[Info] [Layer C: Execution Desk] Validating risk parameters for ${symbol}...`);
-            sendEvent({ type: 'progress', message: `[Layer C: Execution Desk] Validating risk parameters for ${symbol}...` });
-            
-            if (rrRatio < 1.9) {
-              console.log(`[Layer C: Execution Desk] REJECTED ${symbol}: R/R Ratio too low (${rrRatio.toFixed(2)}). Minimum 2.0 required.`);
-              sendEvent({ type: 'progress', message: `[Layer C: Execution Desk] REJECTED: R/R Ratio too low (${rrRatio.toFixed(2)}).` });
-              rejections.push({
+              await supabase.from("trade_opportunities").insert({
                 symbol,
-                reason: `Risk/Reward ratio ${rrRatio.toFixed(2)} is below institutional minimum of 2.0`,
-                layer: "Execution Desk"
+                side: dbSide,
+                timeframe: timeframe.toLowerCase(),
+                status: "REJECTED",
+                ai_summary: institutional_rationale,
+                ai_risks: riskValidation.reason,
+                model_id: modelId,
+                model_version: modelVersion,
+                risk_summary: `RSI ${snapshot.rsi_14}`
               });
               continue;
             }
@@ -478,14 +493,10 @@ serve((req) => {
                 status: "PENDING_APPROVAL",
                 entry_plan_json: {
                   price: entry_price,
-                  transaction_cost: txCost,
-                  slippage: slip,
-                  net_edge: net,
                 },
                 stop_plan_json: { stop: stop_loss },
                 take_profit_json: { tp: take_profit },
                 risk_summary: `RSI ${snapshot.rsi_14}`,
-                expected_return: expectedReturn,
                 confidence: confidence_score,
                 ai_summary: institutional_rationale,
                 ai_risks: "Managed by AI Risk Officer",
@@ -499,9 +510,6 @@ serve((req) => {
               console.log(`[Success] Opportunity generated for ${symbol}: ID ${data.id}`);
               sendEvent({ type: 'progress', message: `[Success] Opportunity generated for ${symbol}` });
               
-              const expected_loss = Math.abs(entry_price - stop_loss) * qty;
-              const expected_profit = Math.abs(take_profit - entry_price) * qty;
-
               let order_type = dbSide === 'LONG' ? 'BUY MARKET' : 'SELL MARKET';
               if (Math.abs(entry_price - snapshot.current_price) / snapshot.current_price > 0.0005) {
                   if (dbSide === 'LONG') {
@@ -517,9 +525,7 @@ serve((req) => {
                 order_type,
                 entry_price,
                 take_profit,
-                stop_loss,
-                expected_loss,
-                expected_profit
+                stop_loss
               });
 
               await insertAuditLog(supabase, {

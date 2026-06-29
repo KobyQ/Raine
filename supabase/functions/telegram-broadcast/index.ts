@@ -22,6 +22,10 @@ serve(async (req) => {
 
     const signal = payload.record;
 
+    if (signal.status === "REJECTED") {
+      return new Response("Ignored REJECTED signal", { status: 200 });
+    }
+
     // Check if we have the necessary environment variables
     if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
       console.error("Missing Telegram configuration environment variables.");

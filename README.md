@@ -19,10 +19,11 @@ The RaineBank Engine is designed to identify structural market setups, mathemati
 - **Trigger Framework:** Heavy reliance on the `pg_net` extension. Database events (`AFTER INSERT`) trigger zero-latency asynchronous HTTP requests to Deno Edge Functions, bypassing the need for polling loops.
 - **Cron Scheduler:** `supabase/config.toml` manages asynchronous heartbeats (via `pg_cron` equivalent features).
 
-### 3. Execution Layer (Live Capital)
-- **The Bridge:** **MetaApi.cloud** serves as the REST/WebSocket middleware bridging the Supabase Edge runtime directly into the Exness (MT4/MT5) order book.
-- **Sizing Engine:** The `exness-executor` Edge Function dynamically calculates exact lot sizes based on a strict 1% risk threshold.
-- **Guardrails:** Hardcoded execution caps (`MAX_LOT_SIZE = 0.05`) mathematically insulate the portfolio from AI hallucinations or logic errors.
+### 3. Execution Layer (Multi-Tenant BYOB)
+- **The Router (`exness-executor`):** A multi-tenant execution engine that iterates through subscribed users upon an approved AI signal.
+- **Dynamic Sizing & Heat:** Automatically calculates exact lot sizes based on each user's specific `user_risk_settings` (Portfolio Capital, % Risk) and validates their global Portfolio Heat before executing.
+- **Bring-Your-Own-Broker (BYOB):** Users securely connect their own MT4/MT5 accounts via MetaApi.cloud tokens to execute live trades.
+- **Paper Trading:** Seamlessly simulates real-time portfolio tracking for users who opt out of live execution or haven't connected broker keys.
 
 ### 4. Intelligence & Risk
 - **Alpha Engine:** Runs on a strict M30 (30-minute) interval to identify high-probability setups.
