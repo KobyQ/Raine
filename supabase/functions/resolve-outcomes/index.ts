@@ -3,6 +3,19 @@ import { createClient } from "npm:@supabase/supabase-js@2.108.2";
 import { insertAuditLog } from "../_shared/audit.ts";
 
 serve(async (req) => {
+  // Skip execution when the market is closed (Friday 22:00 UTC to Sunday 22:00 UTC)
+  const now = new Date();
+  const day = now.getUTCDay();
+  const hour = now.getUTCHours();
+  const isWeekend = (day === 5 && hour >= 22) || (day === 6) || (day === 0 && hour < 22);
+  
+  if (req.method === "POST" && isWeekend) {
+    return new Response(
+      JSON.stringify({ ok: true, skipped: true, reason: "Market is closed (Weekend)" }),
+      { status: 200, headers: { "content-type": "application/json" } }
+    );
+  }
+
   const url = Deno.env.get("SUPABASE_URL");
   const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   

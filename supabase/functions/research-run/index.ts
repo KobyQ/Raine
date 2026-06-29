@@ -216,6 +216,20 @@ Current Market Context:
 serve((req) => {
   const { searchParams } = new URL(req.url);
   const isCron = req.method === "POST";
+  
+  // Skip execution when the market is closed (Friday 22:00 UTC to Sunday 22:00 UTC)
+  const now = new Date();
+  const day = now.getUTCDay();
+  const hour = now.getUTCHours();
+  const isWeekend = (day === 5 && hour >= 22) || (day === 6) || (day === 0 && hour < 22);
+  
+  if (isCron && isWeekend) {
+    return new Response(
+      JSON.stringify({ ok: true, skipped: true, reason: "Market is closed (Weekend)" }),
+      { status: 200, headers: { "content-type": "application/json" } }
+    );
+  }
+
   const timeframe = searchParams.get("timeframe") ?? (isCron ? "1H" : "1D");
   const modelId = searchParams.get("model_id") ?? undefined;
   const modelVersion = searchParams.get("model_version") ?? undefined;
