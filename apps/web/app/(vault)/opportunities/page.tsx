@@ -139,7 +139,7 @@ export default function Page() {
                   {entryPrice ? (
                     <div style={{ fontSize: '18px', fontWeight: 700, color: '#e5e7eb' }}>{entryPrice}</div>
                   ) : (
-                    <div style={{ fontSize: '18px', fontWeight: 700, color: '#e5e7eb', filter: 'blur(6px)', userSelect: 'none' }}>0.0000</div>
+                    <div style={{ fontSize: '18px', fontWeight: 700, color: '#6b7280' }}>—</div>
                   )}
                 </div>
                 <div style={{ background: '#111', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.02)' }}>
@@ -147,7 +147,7 @@ export default function Page() {
                   {stopPrice ? (
                     <div style={{ fontSize: '18px', fontWeight: 700, color: '#f87171' }}>{stopPrice}</div>
                   ) : (
-                    <div style={{ fontSize: '18px', fontWeight: 700, color: '#f87171', filter: 'blur(6px)', userSelect: 'none' }}>0.0000</div>
+                    <div style={{ fontSize: '18px', fontWeight: 700, color: '#6b7280' }}>—</div>
                   )}
                 </div>
                 <div style={{ background: '#111', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.02)' }}>
@@ -155,7 +155,7 @@ export default function Page() {
                   {tpPrice ? (
                     <div style={{ fontSize: '18px', fontWeight: 700, color: '#4ade80' }}>{tpPrice}</div>
                   ) : (
-                    <div style={{ fontSize: '18px', fontWeight: 700, color: '#4ade80', filter: 'blur(6px)', userSelect: 'none' }}>0.0000</div>
+                    <div style={{ fontSize: '18px', fontWeight: 700, color: '#6b7280' }}>—</div>
                   )}
                 </div>
               </div>

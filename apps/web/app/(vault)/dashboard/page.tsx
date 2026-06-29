@@ -272,24 +272,30 @@ export default function VaultDashboard() {
                   <div style={{ fontSize: '12px', color: '#9ca3af', marginBottom: '8px', fontWeight: 600 }}>ENTRY</div>
                   {entryPrice ? (
                     <div style={{ fontSize: '18px', fontWeight: 700, color: '#e5e7eb' }}>{entryPrice}</div>
-                  ) : (
+                  ) : !isPro ? (
                     <div style={{ fontSize: '18px', fontWeight: 700, color: '#e5e7eb', filter: 'blur(6px)', userSelect: 'none' }}>0.0000</div>
+                  ) : (
+                    <div style={{ fontSize: '18px', fontWeight: 700, color: '#6b7280' }}>—</div>
                   )}
                 </div>
                 <div style={{ background: '#111', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.02)' }}>
                   <div style={{ fontSize: '12px', color: '#9ca3af', marginBottom: '8px', fontWeight: 600 }}>STOP LOSS</div>
                   {stopPrice ? (
                     <div style={{ fontSize: '18px', fontWeight: 700, color: '#f87171' }}>{stopPrice}</div>
-                  ) : (
+                  ) : !isPro ? (
                     <div style={{ fontSize: '18px', fontWeight: 700, color: '#f87171', filter: 'blur(6px)', userSelect: 'none' }}>0.0000</div>
+                  ) : (
+                    <div style={{ fontSize: '18px', fontWeight: 700, color: '#6b7280' }}>—</div>
                   )}
                 </div>
                 <div style={{ background: '#111', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.02)' }}>
                   <div style={{ fontSize: '12px', color: '#9ca3af', marginBottom: '8px', fontWeight: 600 }}>TAKE PROFIT</div>
                   {tpPrice ? (
                     <div style={{ fontSize: '18px', fontWeight: 700, color: '#4ade80' }}>{tpPrice}</div>
-                  ) : (
+                  ) : !isPro ? (
                     <div style={{ fontSize: '18px', fontWeight: 700, color: '#4ade80', filter: 'blur(6px)', userSelect: 'none' }}>0.0000</div>
+                  ) : (
+                    <div style={{ fontSize: '18px', fontWeight: 700, color: '#6b7280' }}>—</div>
                   )}
                 </div>
               </div>

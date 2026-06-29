@@ -35,7 +35,7 @@ export async function GET(request: Request) {
 
   console.log('[DEBUG /api/vault/signals]', { userId: user.id, sub, subError });
 
-  const is_pro = sub?.plan_tier === 'alpha' && sub?.status === 'active';
+  const is_pro = (sub?.plan_tier === 'alpha' || sub?.plan_tier === 'pro') && sub?.status === 'active';
 
   if (is_pro) {
     // PRO USER: Unrestricted access to real-time opportunities
