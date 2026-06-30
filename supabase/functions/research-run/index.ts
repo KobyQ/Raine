@@ -280,10 +280,13 @@ serve((req) => {
             });
 
             let bars: Bar[];
+            let source: string;
             try {
               console.log(`[Data Fetch] Fetching market data for ${symbol}...`);
               sendEvent({ type: 'progress', message: `[Data Fetch] Fetching historical price data for ${symbol}...` });
-              bars = await fetchPaperBars(symbol, timeframe);
+              const result = await fetchPaperBars(symbol, timeframe);
+              bars = result.bars;
+              source = result.source;
             } catch (err: any) {
               console.error(`[Data Fetch Error] Failed to fetch data for ${symbol}: ${err.message}`);
               await insertAuditLog(supabase, {
@@ -300,8 +303,8 @@ serve((req) => {
               continue;
             }
             
-            console.log(`\n[Info] [Data Fetch] Successfully fetched ${bars.length} bars for ${symbol}.`);
-            sendEvent({ type: 'progress', message: `[Data Fetch] Successfully acquired ${bars.length} data points.` });
+            console.log(`\n[Info] [Data Fetch] Successfully fetched ${bars.length} bars from ${source} for ${symbol}.`);
+            sendEvent({ type: 'progress', message: `[Data Fetch] Successfully acquired ${bars.length} data points from ${source}.` });
 
             // Store fetched bars in PTI database asynchronously
             saveBars(supabase, symbol, timeframe, bars).catch(err => 
