@@ -55,11 +55,12 @@ export async function placePaperOrder(
     })();
 
   if (client) {
+    const { supabase: _supa, ...safeOrder } = order as any;
     await insertAuditLog(client, {
       actor_type: 'SYSTEM',
       action: 'PLACE_ORDER',
       entity_type: 'order',
-      payload_json: order as unknown as Record<string, unknown>,
+      payload_json: safeOrder as unknown as Record<string, unknown>,
     });
   }
 
