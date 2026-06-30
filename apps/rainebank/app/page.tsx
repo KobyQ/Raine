@@ -1,12 +1,17 @@
 import Link from 'next/link';
 import Logo from '@components/Logo';
-import { supabaseServer } from '@lib/supabase-server';
+import { createClient } from '@supabase/supabase-js';
 
 export default async function LandingPage() {
-  const supabase = supabaseServer();
+  // Use Service Role key to bypass RLS so logged-out users can see the showcase signal
+  // without us having to open the database to public anonymous scraping.
+  const supabaseAdmin = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
   
   // Fetch the latest trade opportunity for the live showcase
-  const { data: latestSignals } = await supabase
+  const { data: latestSignals } = await supabaseAdmin
     .from('trade_opportunities')
     .select('*')
     .in('status', ['PENDING_APPROVAL', 'APPROVED', 'WON', 'LOST'])
