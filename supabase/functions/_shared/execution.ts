@@ -141,11 +141,7 @@ export async function fetchPaperBars(symbol: string, timeframe = '1D', limit = 3
     let yfSymbol = symbol;
     const isCrypto = symbol.startsWith('BTC') || symbol.startsWith('ETH') || symbol.startsWith('SOL');
 
-    if (symbol.startsWith('XAUUSD') || symbol === 'XAU/USD') {
-      yfSymbol = 'GC=F'; // Gold Futures as proxy for spot XAUUSD
-    } else if (symbol.startsWith('XAGUSD') || symbol === 'XAG/USD') {
-      yfSymbol = 'SI=F'; // Silver Futures as proxy for spot XAGUSD
-    } else if (symbol === 'UKOIL') {
+    if (symbol === 'UKOIL') {
       yfSymbol = 'BZ=F'; // Brent Crude Oil Futures as proxy for UKOIL
     } else if (isCrypto && symbol.endsWith('USD')) {
       // BTCUSD -> BTC-USD
