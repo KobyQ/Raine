@@ -53,6 +53,7 @@ export default async function LandingPage() {
             <Logo />
             <div style={{ display: 'none', gap: '24px', alignItems: 'center', color: '#9ca3af', fontSize: '14px', fontWeight: 500 }} className="md-flex">
               <span style={{ cursor: 'pointer', transition: 'color 0.2s', ':hover': { color: '#fff' } } as any}>How it Works</span>
+              <Link href="/compare" style={{ color: 'inherit', textDecoration: 'none', transition: 'color 0.2s', ':hover': { color: '#fff' } } as any}>How we compare</Link>
               <span style={{ cursor: 'pointer', transition: 'color 0.2s', ':hover': { color: '#fff' } } as any}>Pricing</span>
               <span style={{ cursor: 'pointer', transition: 'color 0.2s', ':hover': { color: '#fff' } } as any}>API Docs</span>
             </div>
