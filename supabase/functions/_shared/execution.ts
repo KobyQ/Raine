@@ -85,7 +85,7 @@ export interface Bar {
   v: number;
 }
 
-export async function fetchPaperBars(symbol: string, timeframe = '1D', limit = 300): Promise<Bar[]> {
+export async function fetchPaperBars(symbol: string, timeframe = '1D', limit = 300): Promise<{source: string, bars: Bar[]}> {
   // Route Crypto/Forex/Commodity pairs to Yahoo Finance
   const isForexOrCrypto = symbol === 'XAUUSD' || symbol === 'UKOIL' || symbol.includes('USD') || symbol.includes('/');
   
@@ -122,7 +122,7 @@ export async function fetchPaperBars(symbol: string, timeframe = '1D', limit = 3
 
           if (bars.length > 0) {
             console.log(`[Data Fetch] Pulled ${bars.length} bars from MetaTrader Broker Feed for ${symbol}`);
-            return bars;
+            return { source: 'MetaAPI', bars };
           }
         } else {
           console.warn(`MetaApi returned ${metaRes.status} for ${symbol}. Falling back to Yahoo Finance.`);
@@ -174,7 +174,7 @@ export async function fetchPaperBars(symbol: string, timeframe = '1D', limit = 3
 
     const data = await res.json();
     const result = data.chart?.result?.[0];
-    if (!result) return [];
+    if (!result) return { source: 'Yahoo Finance', bars: [] };
 
     const timestamps = result.timestamp || [];
     const quote = result.indicators.quote[0];
@@ -194,7 +194,7 @@ export async function fetchPaperBars(symbol: string, timeframe = '1D', limit = 3
       });
     }
     
-    return bars.slice(-limit);
+    return { source: 'Yahoo Finance', bars: bars.slice(-limit) };
   }
 
   // Fallback to original Alpaca fetcher for US Stocks
@@ -216,6 +216,6 @@ export async function fetchPaperBars(symbol: string, timeframe = '1D', limit = 3
     throw new Error(`Alpaca data error ${res.status}: ${text}`);
   }
   const json = await res.json();
-  return json.bars ?? [];
+  return { source: 'Alpaca', bars: json.bars ?? [] };
 }
 
