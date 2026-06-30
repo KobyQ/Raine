@@ -27,11 +27,32 @@ export interface OrderRequest {
   clientOrderId?: string;
 }
 
-async function alpacaFetch(path: string, opts: RequestInit) {
+async function metaApiFetch(path: string, opts: RequestInit, token: string, accountId: string) {
+  const region = getEnv('METAAPI_REGION') || 'new-york';
+  const base = `https://mt-client-api-v1.${region}.agiliumtrade.ai`;
+  
+  const headers = {
+    'auth-token': token,
+    ...(opts.headers || {}),
+  } as Record<string, string>;
+  
+  const fullPath = path.startsWith('/users') 
+    ? `${base}${path}` 
+    : `${base}/users/current/accounts/${accountId}${path}`;
+    
+  const res = await fetch(fullPath, { ...opts, headers });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`MetaAPI error ${res.status}: ${text}`);
+  }
+  return res.json();
+}
+
+async function alpacaFetch(path: string, opts: RequestInit, key: string, secret: string) {
   const base = 'https://paper-api.alpaca.markets/v2';
   const headers = {
-    'APCA-API-KEY-ID': process.env.BROKER_KEY,
-    'APCA-API-SECRET-KEY': process.env.BROKER_SECRET,
+    'APCA-API-KEY-ID': key,
+    'APCA-API-SECRET-KEY': secret,
     ...(opts.headers || {}),
   } as Record<string, string>;
   const res = await fetch(`${base}${path}`, { ...opts, headers });
@@ -44,49 +65,67 @@ async function alpacaFetch(path: string, opts: RequestInit) {
 
 export async function placePaperOrder(
   order: OrderRequest,
-  supabase?: SupabaseClient,
+  supabase: SupabaseClient,
+  settings: any
 ) {
-  const client =
-    supabase ||
-    (() => {
-      const url = getEnv('SUPABASE_URL');
-      const key = getEnv('SUPABASE_SERVICE_ROLE_KEY');
-      return url && key ? createClient(url, key) : undefined;
-    })();
-
-  if (client) {
-    await insertAuditLog(client, {
-      actor_type: 'SYSTEM',
-      action: 'PLACE_ORDER',
-      entity_type: 'order',
-      payload_json: order as unknown as Record<string, unknown>,
-    });
-  }
-
-  const res = await alpacaFetch('/orders', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      symbol: order.symbol,
-      side: order.side,
-      qty: order.qty,
-      type: order.type,
-      time_in_force: order.tif || 'day',
-      limit_price: order.limitPrice,
-      stop_price: order.stopPrice,
-      client_order_id: order.clientOrderId,
-    }),
+  const { supabase: _supa, ...safeOrder } = order as any;
+  await insertAuditLog(supabase, {
+    actor_type: 'SYSTEM',
+    action: 'PLACE_ORDER',
+    entity_type: 'order',
+    payload_json: safeOrder as unknown as Record<string, unknown>,
   });
 
-  if (client) {
-    await insertAuditLog(client, {
-      actor_type: 'SYSTEM',
-      action: 'ORDER_RESPONSE',
-      entity_type: 'order',
-      payload_json: res,
-    });
+  const isMetaApi = settings.active_broker === 'METAAPI';
+  let res: any;
+
+  if (isMetaApi) {
+    let actionType = 'ORDER_TYPE_BUY';
+    if (order.type === 'market') {
+      actionType = order.side === 'buy' ? 'ORDER_TYPE_BUY' : 'ORDER_TYPE_SELL';
+    } else if (order.type === 'limit') {
+      actionType = order.side === 'buy' ? 'ORDER_TYPE_BUY_LIMIT' : 'ORDER_TYPE_SELL_LIMIT';
+    } else if (order.type === 'stop') {
+      actionType = order.side === 'buy' ? 'ORDER_TYPE_BUY_STOP' : 'ORDER_TYPE_SELL_STOP';
+    }
+
+    res = await metaApiFetch('/trade', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        actionType,
+        symbol: order.symbol,
+        volume: order.qty,
+        openPrice: order.limitPrice || order.stopPrice,
+        clientId: order.clientOrderId,
+      }),
+    }, settings.meta_api_token, settings.meta_api_account_id);
+  } else {
+    // Fallback to Alpaca
+    res = await alpacaFetch('/orders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        symbol: order.symbol,
+        side: order.side,
+        qty: order.qty,
+        type: order.type,
+        time_in_force: order.tif || 'day',
+        limit_price: order.limitPrice,
+        stop_price: order.stopPrice,
+        client_order_id: order.clientOrderId,
+      }),
+    }, settings.alpaca_key || getEnv('BROKER_KEY') || '', settings.alpaca_secret || getEnv('BROKER_SECRET') || '');
   }
-  return res;
+
+  await insertAuditLog(supabase, {
+    actor_type: 'SYSTEM',
+    action: 'ORDER_RESPONSE',
+    entity_type: 'order',
+    payload_json: res,
+  });
+  
+  return { res, broker: isMetaApi ? 'METAAPI' : 'ALPACA' };
 }
 
 export interface TrackedOrderRequest extends OrderRequest {
@@ -96,28 +135,43 @@ export interface TrackedOrderRequest extends OrderRequest {
 }
 
 export async function placeAndTrackOrder(req: TrackedOrderRequest) {
-  const clientOrderId =
-    req.clientOrderId || makeClientOrderId(req.tradeId, req.n);
-  const orderRes = await placePaperOrder({ ...req, clientOrderId });
+  const clientOrderId = req.clientOrderId || makeClientOrderId(req.tradeId, req.n);
+  
+  const { data: settings } = await req.supabase.from('user_risk_settings').select('*').limit(1).single();
+  const activeSettings = settings || { active_broker: 'ALPACA' };
+
+  const { res: orderRes, broker } = await placePaperOrder({ ...req, clientOrderId }, req.supabase, activeSettings);
+
+  let isFilled = false;
+  let status = 'NEW';
+  let filledQty = 0;
+  let price = undefined;
+
+  if (broker === 'METAAPI') {
+    isFilled = orderRes.stringCode === 'ERR_NO_ERROR' || orderRes.orderId;
+    status = isFilled ? 'FILLED' : 'FAILED';
+    price = orderRes.price;
+    filledQty = isFilled ? req.qty : 0;
+  } else {
+    status = (orderRes.status || 'new').toUpperCase();
+  }
 
   const { data: orderRow } = await req.supabase
     .from('orders')
     .insert({
       trade_id: req.tradeId,
-      broker: 'PAPER',
+      broker,
       client_order_id: clientOrderId,
       type: req.type,
       side: req.side,
       qty: req.qty,
-      status: (orderRes.status || 'new').toUpperCase(),
+      status: status,
+      price: price,
       raw_request: {
         symbol: req.symbol,
         side: req.side,
         qty: req.qty,
         type: req.type,
-        time_in_force: req.tif || 'day',
-        limit_price: req.limitPrice,
-        stop_price: req.stopPrice,
         client_order_id: clientOrderId,
       },
       raw_response: orderRes,
@@ -129,38 +183,47 @@ export async function placeAndTrackOrder(req: TrackedOrderRequest) {
     throw new Error('Failed to insert order into database');
   }
 
-  let filledQty = 0;
-  let status = orderRes.status as string;
-  let last = orderRes;
-  let loops = 0;
-  while (status !== 'filled' && status !== 'canceled' && loops < 10) {
-    await new Promise((r) => setTimeout(r, 1000));
-    const upd = await alpacaFetch(`/orders/${orderRes.id}`, {
-      method: 'GET',
+  if (broker === 'METAAPI' && isFilled && price) {
+    await req.supabase.from('executions').insert({
+      order_id: orderRow.id,
+      price: Number(price),
+      qty: req.qty,
+      raw_fill: orderRes,
     });
-    status = upd.status;
-    const newFilled = Number(upd.filled_qty || 0);
-    if (newFilled > filledQty) {
-      const diff = newFilled - filledQty;
-      await req.supabase.from('executions').insert({
-        order_id: orderRow.id,
-        price: Number(upd.filled_avg_price),
-        qty: diff,
-        raw_fill: upd,
-      });
-      filledQty = newFilled;
+  } else if (broker === 'ALPACA') {
+    // Poll for Alpaca execution
+    let currentStatus = orderRes.status as string;
+    let last = orderRes;
+    let loops = 0;
+    while (currentStatus !== 'filled' && currentStatus !== 'canceled' && loops < 10) {
+      await new Promise((r) => setTimeout(r, 1000));
+      const upd = await alpacaFetch(`/orders/${orderRes.id}`, { method: 'GET' }, activeSettings.alpaca_key || getEnv('BROKER_KEY') || '', activeSettings.alpaca_secret || getEnv('BROKER_SECRET') || '');
+      currentStatus = upd.status;
+      const newFilled = Number(upd.filled_qty || 0);
+      if (newFilled > filledQty) {
+        const diff = newFilled - filledQty;
+        await req.supabase.from('executions').insert({
+          order_id: orderRow.id,
+          price: Number(upd.filled_avg_price),
+          qty: diff,
+          raw_fill: upd,
+        });
+        filledQty = newFilled;
+      }
+      last = upd;
+      loops++;
     }
-    last = upd;
-    loops++;
-  }
 
-  await req.supabase
-    .from('orders')
-    .update({
-      status: status.toUpperCase(),
-      price: filledQty ? Number(last.filled_avg_price) : undefined,
-    })
-    .eq('id', orderRow.id);
+    await req.supabase
+      .from('orders')
+      .update({
+        status: currentStatus.toUpperCase(),
+        price: filledQty ? Number(last.filled_avg_price) : undefined,
+      })
+      .eq('id', orderRow.id);
+      
+    status = currentStatus.toUpperCase();
+  }
 
   return { orderId: orderRow.id, clientOrderId, filledQty, status };
 }
@@ -176,25 +239,52 @@ export interface Bar {
 
 export async function fetchPaperBars(
   symbol: string,
-  timeframe = '1D',
+  timeframe = '1h',
   limit = 100,
+  supabase?: any
 ): Promise<Bar[]> {
-  const base = 'https://data.alpaca.markets/v2';
-  const key = getEnv('BROKER_KEY') || process.env.BROKER_KEY || '';
-  const secret = getEnv('BROKER_SECRET') || process.env.BROKER_SECRET || '';
-  const res = await fetch(
-    `${base}/stocks/${symbol}/bars?timeframe=${timeframe}&limit=${limit}`,
-    {
-      headers: {
-        'APCA-API-KEY-ID': key,
-        'APCA-API-SECRET-KEY': secret,
-      },
-    },
-  );
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Alpaca data error ${res.status}: ${text}`);
+  try {
+    let settings = { active_broker: 'ALPACA' } as any;
+    
+    if (supabase) {
+      const { data } = await supabase.from('user_risk_settings').select('*').limit(1).single();
+      if (data) settings = data;
+    }
+
+    if (settings.active_broker === 'METAAPI') {
+      const res = await metaApiFetch(`/historical-market-data/symbols/${symbol}/timeframes/${timeframe}/candles?limit=${limit}`, {
+        method: 'GET'
+      }, settings.meta_api_token, settings.meta_api_account_id);
+      
+      return (res || []).map((c: any) => ({
+        t: c.time,
+        o: c.open,
+        h: c.high,
+        l: c.low,
+        c: c.close,
+        v: c.tickVolume || c.volume || 0,
+      }));
+    } else {
+      const tfMap: Record<string, string> = { '1h': '1Hour', '1d': '1Day', '15m': '15Min' };
+      const alpacaTf = tfMap[timeframe.toLowerCase()] || '1Day';
+      const key = settings.alpaca_key || getEnv('BROKER_KEY') || '';
+      const secret = settings.alpaca_secret || getEnv('BROKER_SECRET') || '';
+      
+      const res = await alpacaFetch(`/stocks/${symbol}/bars?timeframe=${alpacaTf}&limit=${limit}`, {
+        method: 'GET'
+      }, key, secret);
+      
+      return (res.bars || []).map((b: any) => ({
+        t: b.t,
+        o: b.o,
+        h: b.h,
+        l: b.l,
+        c: b.c,
+        v: b.v
+      }));
+    }
+  } catch (err) {
+    console.warn(`Failed to fetch bars for ${symbol}:`, err);
+    return [];
   }
-  const json = await res.json();
-  return json.bars || [];
 }

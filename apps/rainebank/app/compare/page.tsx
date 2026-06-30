@@ -1,8 +1,13 @@
 import Link from 'next/link';
 import Logo from '@components/Logo';
 import LandingNavbar from '@components/LandingNavbar';
+import { supabaseServer } from '@lib/supabase-server';
 
-export default function ComparePage() {
+export default async function ComparePage() {
+  const supabase = supabaseServer();
+  const { data: { user } } = await supabase.auth.getUser();
+  const isLoggedIn = !!user;
+
   return (
     <div style={{
       minHeight: '100vh',
@@ -20,7 +25,7 @@ export default function ComparePage() {
       }} />
 
       {/* Floating Inset Navigation */}
-      <LandingNavbar />
+      <LandingNavbar isLoggedIn={isLoggedIn} />
 
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '64px 24px' }}>
         

@@ -2,8 +2,13 @@ import Link from 'next/link';
 import Logo from '@components/Logo';
 import { createClient } from '@supabase/supabase-js';
 import LandingNavbar from '@components/LandingNavbar';
+import { supabaseServer } from '@lib/supabase-server';
 
 export default async function LandingPage() {
+  const supabase = supabaseServer();
+  const { data: { user } } = await supabase.auth.getUser();
+  const isLoggedIn = !!user;
+
   // Use Service Role key to bypass RLS so logged-out users can see the showcase signal
   // without us having to open the database to public anonymous scraping.
   const supabaseAdmin = createClient(
@@ -47,7 +52,7 @@ export default async function LandingPage() {
       }} />
 
       {/* Floating Inset Navigation */}
-      <LandingNavbar />
+      <LandingNavbar isLoggedIn={isLoggedIn} />
 
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '40px 24px' }}>
 
@@ -76,11 +81,11 @@ export default async function LandingPage() {
               No stress, no staring at screens all day.
             </p>
             <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
-              <Link href="/dashboard" style={{
+              <Link href={isLoggedIn ? "/dashboard" : "/login"} style={{
                 background: '#fff', color: '#000', padding: '16px 32px', borderRadius: '100px',
                 textDecoration: 'none', fontSize: '16px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px'
               }}>
-                Open your Dashboard
+                {isLoggedIn ? "Open your Dashboard" : "Get Started"}
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
               </Link>
             </div>
@@ -231,10 +236,10 @@ export default async function LandingPage() {
                 </li>
               </ul>
 
-              <Link href="/dashboard" style={{
+              <Link href={isLoggedIn ? "/dashboard" : "/login"} style={{
                 background: '#fff', color: '#000', padding: '16px', borderRadius: '100px',
                 textDecoration: 'none', fontSize: '15px', fontWeight: 600, textAlign: 'center'
-              }}>Start your Autopilot</Link>
+              }}>{isLoggedIn ? "Start your Autopilot" : "Get Started"}</Link>
             </div>
           </div>
         </section>

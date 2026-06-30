@@ -44,8 +44,11 @@ export async function POST(request: Request) {
       risk_per_trade_pct: Math.min(0.2, Math.max(0.001, Number(body.risk_per_trade_pct || 0.01))),
       max_portfolio_heat_pct: Math.min(1.0, Math.max(0.01, Number(body.max_portfolio_heat_pct || 0.10))),
       max_spread_points: Math.min(1000, Math.max(0, Number(body.max_spread_points || 50))),
+      active_broker: body.active_broker || 'ALPACA',
       meta_api_token: body.meta_api_token || null,
       meta_api_account_id: body.meta_api_account_id || null,
+      alpaca_key: body.alpaca_key || null,
+      alpaca_secret: body.alpaca_secret || null,
       is_live_execution_enabled: Boolean(body.is_live_execution_enabled)
     };
 

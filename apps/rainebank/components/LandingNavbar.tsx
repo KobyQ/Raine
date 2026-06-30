@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation';
 import Logo from './Logo';
 import { Menu, X } from 'lucide-react';
 
-export default function LandingNavbar() {
+export default function LandingNavbar({ isLoggedIn = false }: { isLoggedIn?: boolean }) {
   const [isOpen, setIsOpen] = useState(false);
   const pathname = usePathname();
 
@@ -54,11 +54,11 @@ export default function LandingNavbar() {
 
             {/* Desktop Actions */}
             <div className="desktop-nav" style={{ gap: '16px', alignItems: 'center' }}>
-              <Link href="/login" style={{ color: '#fff', textDecoration: 'none', fontSize: 14, fontWeight: 600 }}>Log in</Link>
-              <Link href="/dashboard" style={{
+              {!isLoggedIn && <Link href="/login" style={{ color: '#fff', textDecoration: 'none', fontSize: 14, fontWeight: 600 }}>Log in</Link>}
+              <Link href={isLoggedIn ? "/dashboard" : "/login"} style={{
                 background: '#fff', color: '#000', padding: '10px 24px', borderRadius: '100px',
                 textDecoration: 'none', fontSize: 14, fontWeight: 600, transition: 'opacity 0.2s'
-              }}>Get Started</Link>
+              }}>{isLoggedIn ? "Open Vault" : "Get Started"}</Link>
             </div>
 
             {/* Mobile Toggle Button */}
@@ -84,8 +84,10 @@ export default function LandingNavbar() {
               )}
               
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '16px', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-                <Link onClick={() => setIsOpen(false)} href="/login" style={{ color: '#fff', textDecoration: 'none', fontSize: 16, fontWeight: 600, textAlign: 'center', padding: '12px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)' }}>Log in</Link>
-                <Link onClick={() => setIsOpen(false)} href="/dashboard" style={{ background: '#fff', color: '#000', padding: '12px', borderRadius: '100px', textDecoration: 'none', fontSize: 16, fontWeight: 600, textAlign: 'center' }}>Get Started</Link>
+                {!isLoggedIn && <Link onClick={() => setIsOpen(false)} href="/login" style={{ color: '#fff', textDecoration: 'none', fontSize: 16, fontWeight: 600, textAlign: 'center', padding: '12px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)' }}>Log in</Link>}
+                <Link onClick={() => setIsOpen(false)} href={isLoggedIn ? "/dashboard" : "/login"} style={{ background: '#fff', color: '#000', padding: '12px', borderRadius: '100px', textDecoration: 'none', fontSize: 16, fontWeight: 600, textAlign: 'center' }}>
+                  {isLoggedIn ? "Open Vault" : "Get Started"}
+                </Link>
               </div>
             </div>
           )}
