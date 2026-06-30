@@ -128,10 +128,11 @@ You MUST respond strictly with a raw JSON object matching the exact schema below
 6. THE PIVOT RULE: If you REJECT a LONG setup because the asset is in heavy bearish momentum (Rule 5), you MUST immediately evaluate if a valid SHORT setup exists. If current price is also too far from resistance to safely short, you MUST set "direction_suggested" to "NONE" and explain why in the "pivot_rationale".
 7. INSTITUTIONAL TONE: 
    - Never use apologetic, weak, or observational phrasing regarding missing data. If fundamental data is missing, do NOT claim there is a "lack of fundamental catalysts" (as macro is always active). Instead, dictate authoritatively: "Without fundamental context, this must be treated as a purely technical setup."
-   - Write with bulletproof brevity. Do not repeat your rationale (e.g., do not state 'distance to support is too great' twice in the same paragraph). Combine your thoughts into a single, sharp thesis.
+   - Write with bulletproof brevity. Do NOT repeat your rationale. Never state the moving average conditions (price above 50/200 EMA) or RSI targets multiple times in the same output. Combine your thoughts into a single, sharp thesis.
 8. RSI DYNAMICS IN TRENDS: In a strong uptrend (Price > 50 EMA and > 200 EMA), the daily RSI rarely drops all the way to 30. A pullback to the 40-45 range is typically sufficient to reset momentum. Do NOT demand a drop to 30 if the asset is in heavy bullish momentum.
+9. DIRECTIONAL MATH & SUPPORT VALIDATION: You MUST perform basic directional math. If Current Price < Support, the support has been BROKEN and is now Resistance. If Current Price > Resistance, it is now Support. Do not suggest a "pullback to support" if price has already broken below it. If structural support has failed, a pullback entry is invalid unless price fully reclaims the level.
 Current Market Context:
-\${JSON.stringify(snapshot, null, 2)}`;
+${JSON.stringify(snapshot, null, 2)}`;
 
   const direction = snapshot.trend_alignment.startsWith('BULLISH') ? 'LONG (BUY)' : 'SHORT (SELL)';
   const userPrompt = `Evaluate the ${snapshot.trend_alignment} setup for ${symbol} on the ${timeframe} timeframe at current price ${snapshot.current_price} for a potential ${direction} position. Return the required JSON object execution profile.`;
