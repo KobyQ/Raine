@@ -74,7 +74,7 @@ export default function VaultDashboard() {
   const [user, setUser] = useState<{ id: string; email: string } | null>(null);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [hideRejected, setHideRejected] = useState(false);
+  const [hideRejected, setHideRejected] = useState(true);
 
   useEffect(() => {
     const loadInitialData = async () => {
