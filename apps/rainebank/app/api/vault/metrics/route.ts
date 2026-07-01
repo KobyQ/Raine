@@ -12,13 +12,10 @@ export async function GET() {
   const supabase = createClient(url, key);
 
   try {
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-
     const { data: closedTrades, error } = await supabase
       .from('trade_opportunities')
       .select('status, r_multiple, closed_at')
       .in('status', ['WON', 'LOST'])
-      .gte('closed_at', thirtyDaysAgo)
       .order('closed_at', { ascending: true });
 
     if (error) {
@@ -35,45 +32,55 @@ export async function GET() {
       });
     }
 
-    let totalWon = 0;
-    let totalLost = 0;
+    let totalWonAllTime = 0;
+    let totalLostAllTime = 0;
     let netR = 0;
-    let sumWinR = 0;
-    let sumLossR = 0;
-
+    let sumWinRAllTime = 0;
+    let sumLossRAllTime = 0;
     let cumulativeR = 0;
     const equityCurve = [];
 
+    let won30D = 0;
+    let lost30D = 0;
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
     for (const trade of closedTrades) {
       const r = Number(trade.r_multiple) || 0;
+      const closedAt = new Date(trade.closed_at);
+      
       netR += r;
       cumulativeR += r;
 
       if (trade.status === 'WON') {
-        totalWon++;
-        sumWinR += r;
+        totalWonAllTime++;
+        sumWinRAllTime += r;
+        if (closedAt >= thirtyDaysAgo) won30D++;
       } else {
-        totalLost++;
-        sumLossR += r;
+        totalLostAllTime++;
+        sumLossRAllTime += r;
+        if (closedAt >= thirtyDaysAgo) lost30D++;
       }
 
       equityCurve.push({
-        date: new Date(trade.closed_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
+        date: closedAt.toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
         cumulative_r: Number(cumulativeR.toFixed(2))
       });
     }
 
-    const totalTrades = totalWon + totalLost;
-    const winRate = (totalWon / totalTrades) * 100;
-    const lossRate = (totalLost / totalTrades) * 100;
+    const totalTrades30D = won30D + lost30D;
+    const winRate30D = totalTrades30D > 0 ? (won30D / totalTrades30D) * 100 : 0;
 
-    const avgWinR = totalWon > 0 ? sumWinR / totalWon : 0;
-    const avgLossR = totalLost > 0 ? Math.abs(sumLossR / totalLost) : 0;
+    const totalTradesAllTime = totalWonAllTime + totalLostAllTime;
+    const lossRateAllTime = totalTradesAllTime > 0 ? (totalLostAllTime / totalTradesAllTime) * 100 : 0;
+    const winRateAllTime = totalTradesAllTime > 0 ? (totalWonAllTime / totalTradesAllTime) * 100 : 0;
 
-    const expectancy = (winRate / 100 * avgWinR) - (lossRate / 100 * avgLossR);
+    const avgWinR = totalWonAllTime > 0 ? sumWinRAllTime / totalWonAllTime : 0;
+    const avgLossR = totalLostAllTime > 0 ? Math.abs(sumLossRAllTime / totalLostAllTime) : 0;
+
+    const expectancy = (winRateAllTime / 100 * avgWinR) - (lossRateAllTime / 100 * avgLossR);
 
     return NextResponse.json({
-      winRate: Number(winRate.toFixed(1)),
+      winRate: Number(winRate30D.toFixed(1)),
       netR: Number(netR.toFixed(2)),
       expectancy: Number(expectancy.toFixed(2)),
       equityCurve
