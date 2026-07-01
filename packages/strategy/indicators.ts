@@ -94,6 +94,18 @@ export function getContextSnapshot(
         trend_alignment = 'BEARISH_PULLBACK';
       }
     }
+
+    // Mathematical CHOP Overrides
+    const emaSpread = Math.abs(current_ema_50 - current_ema_200) / current_ema_200;
+    
+    // 1. ADX Method: Trend strength is too weak
+    if (current_adx_14 !== null && current_adx_14 < 25) {
+      trend_alignment = 'CHOP';
+    } 
+    // 2. EMA Distance Method: MAs are tangling (less than 0.5% apart)
+    else if (emaSpread < 0.005) {
+      trend_alignment = 'CHOP';
+    }
   }
 
   return {
