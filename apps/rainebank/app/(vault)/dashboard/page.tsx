@@ -74,6 +74,7 @@ export default function VaultDashboard() {
   const [user, setUser] = useState<{ id: string; email: string } | null>(null);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [hideRejected, setHideRejected] = useState(false);
 
   useEffect(() => {
     const loadInitialData = async () => {
@@ -102,7 +103,7 @@ export default function VaultDashboard() {
   useEffect(() => {
     const loadSignals = async () => {
       try {
-        const res = await fetch(`/api/vault/signals?page=${page}&limit=10`, {
+        const res = await fetch(`/api/vault/signals?page=${page}&limit=10&hideRejected=${hideRejected}`, {
           cache: 'no-store',
           headers: {
             'Cache-Control': 'no-cache',
@@ -126,7 +127,7 @@ export default function VaultDashboard() {
     };
 
     loadSignals();
-  }, [page]);
+  }, [page, hideRejected]);
 
   if (loading) {
     return (
@@ -252,7 +253,22 @@ export default function VaultDashboard() {
       )}
 
       {/* Signals List */}
-      <h2 style={{ fontSize: '24px', fontWeight: 800, color: '#fff', marginBottom: '24px', letterSpacing: '-0.5px' }}>Ledger Feed</h2>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
+        <h2 style={{ fontSize: '24px', fontWeight: 800, color: '#fff', margin: 0, letterSpacing: '-0.5px' }}>Ledger Feed</h2>
+        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+          <input 
+            type="checkbox" 
+            checked={hideRejected} 
+            onChange={(e) => {
+              setHideRejected(e.target.checked);
+              setPage(1); // Reset to page 1 on filter change
+            }}
+            style={{ cursor: 'pointer', width: '16px', height: '16px', accentColor: '#38bdf8' }}
+          />
+          <span style={{ color: '#9ca3af', fontSize: '14px', fontWeight: 600 }}>Hide Rejected Signals</span>
+        </label>
+      </div>
+      
       {signals.length === 0 && <p style={{ color: '#9ca3af' }}>No signals found in the vault.</p>}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
