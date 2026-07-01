@@ -193,7 +193,7 @@ ${JSON.stringify(snapshot, null, 2)}`;
  * - `model_id`  Optional model identifier (for audit)
  * - `model_version` Optional model version (for audit)
  */
-serve((req) => {
+serve(async (req) => {
   const { searchParams } = new URL(req.url);
   const isCron = req.method === "POST";
   const timeframe = searchParams.get("timeframe") ?? (isCron ? "4H" : "1D");
