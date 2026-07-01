@@ -82,7 +82,7 @@ function getSymbolName(symbol: string) {
 
 export default function ResearchPage() {
   const [symbol, setSymbol] = useState('XAUUSD');
-  const [timeframe, setTimeframe] = useState('1D');
+  const [timeframe, setTimeframe] = useState('4H');
   const [isLoading, setIsLoading] = useState(false);
   const [results, setResults] = useState<Opportunity[] | null>(null);
   const [rejections, setRejections] = useState<Rejection[] | null>(null);
@@ -218,9 +218,10 @@ export default function ResearchPage() {
                 appearance: 'none',
               }}
             >
-              <option value="1D">Daily</option>
-              <option value="1H">Hourly</option>
               <option value="30Min">30 Minutes</option>
+              <option value="1H">Hourly</option>
+              <option value="4H">4 Hours</option>
+              <option value="1D">Daily</option>
             </select>
           </div>
 
