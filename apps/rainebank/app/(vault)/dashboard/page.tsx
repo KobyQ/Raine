@@ -18,12 +18,12 @@ function parseAnalysisText(text: string) {
 
 function TrendBadge({ structure, strategy }: { structure: string | null, strategy: string | null }) {
   if (!structure) return null;
-  
+
   let label = 'NONE';
   let color = '#9ca3af';
   let bg = 'rgba(156,163,175,0.1)';
   let Icon = Minus;
-  
+
   if (structure.includes('BULLISH')) {
     label = 'BULLISH';
     color = '#4ade80';
@@ -188,7 +188,7 @@ export default function VaultDashboard() {
           <div>
             <h3 style={{ fontSize: '20px', fontWeight: 700, color: '#fff', marginBottom: '8px' }}>Public Access Mode</h3>
             <p style={{ color: '#9ca3af', fontSize: '15px', maxWidth: '600px', margin: 0 }}>
-              Signals are intentionally delayed by 4+ hours and proprietary execution rationale is redacted. 
+              Signals are intentionally delayed by 4+ hours and proprietary execution rationale is redacted.
               Upgrade to <strong>RaineBank Alpha</strong> for real-time institutional market intelligence.
             </p>
           </div>
@@ -256,8 +256,8 @@ export default function VaultDashboard() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
         <h2 style={{ fontSize: '24px', fontWeight: 800, color: '#fff', margin: 0, letterSpacing: '-0.5px' }}>Ledger Feed</h2>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <span style={{ color: '#9ca3af', fontSize: '14px', fontWeight: 600 }}>Hide Rejected Signals</span>
-          <div 
+          <span style={{ color: '#9ca3af', fontSize: '14px', fontWeight: 600 }}>Hide Rejected Trades</span>
+          <div
             onClick={() => {
               setHideRejected(!hideRejected);
               setPage(1);
@@ -286,7 +286,7 @@ export default function VaultDashboard() {
           </div>
         </div>
       </div>
-      
+
       {signals.length === 0 && <p style={{ color: '#9ca3af' }}>No signals found in the vault.</p>}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -303,16 +303,16 @@ export default function VaultDashboard() {
               borderRadius: '24px',
               transition: 'transform 0.2s, box-shadow 0.2s',
             }}
-            onMouseOver={(e) => {
-              e.currentTarget.style.transform = 'translateY(-2px)';
-              e.currentTarget.style.boxShadow = '0 12px 32px rgba(0,0,0,0.4)';
-              e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)';
-            }}
-            onMouseOut={(e) => {
-              e.currentTarget.style.transform = 'translateY(0)';
-              e.currentTarget.style.boxShadow = 'none';
-              e.currentTarget.style.borderColor = 'rgba(255,255,255,0.05)';
-            }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 12px 32px rgba(0,0,0,0.4)';
+                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)';
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = 'none';
+                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.05)';
+              }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
                 <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
@@ -401,7 +401,7 @@ export default function VaultDashboard() {
       {/* Pagination Controls */}
       {totalPages > 1 && (
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '16px', marginTop: '40px' }}>
-          <button 
+          <button
             disabled={page === 1}
             onClick={() => setPage(p => Math.max(1, p - 1))}
             style={{
@@ -420,7 +420,7 @@ export default function VaultDashboard() {
           <div style={{ color: '#9ca3af', fontSize: '14px', fontWeight: 500 }}>
             Page {page} of {totalPages}
           </div>
-          <button 
+          <button
             disabled={page === totalPages}
             onClick={() => setPage(p => Math.min(totalPages, p + 1))}
             style={{
