@@ -49,7 +49,9 @@ export async function POST(request: Request) {
       meta_api_account_id: body.meta_api_account_id || null,
       alpaca_key: body.alpaca_key || null,
       alpaca_secret: body.alpaca_secret || null,
-      is_live_execution_enabled: Boolean(body.is_live_execution_enabled)
+      is_live_execution_enabled: Boolean(body.is_live_execution_enabled),
+      auto_trade_enabled: Boolean(body.auto_trade_enabled),
+      auto_trade_tiers: Array.isArray(body.auto_trade_tiers) ? body.auto_trade_tiers : []
     };
 
     const { data, error } = await supabase

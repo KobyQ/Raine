@@ -21,7 +21,9 @@ export default function SettingsPage() {
     meta_api_account_id: '',
     alpaca_key: '',
     alpaca_secret: '',
-    is_live_execution_enabled: false
+    is_live_execution_enabled: false,
+    auto_trade_enabled: false,
+    auto_trade_tiers: [] as string[]
   });
 
   useEffect(() => {
@@ -39,7 +41,9 @@ export default function SettingsPage() {
             meta_api_account_id: data.settings.meta_api_account_id || '',
             alpaca_key: data.settings.alpaca_key || '',
             alpaca_secret: data.settings.alpaca_secret || '',
-            is_live_execution_enabled: data.settings.is_live_execution_enabled || false
+            is_live_execution_enabled: data.settings.is_live_execution_enabled || false,
+            auto_trade_enabled: data.settings.auto_trade_enabled || false,
+            auto_trade_tiers: data.settings.auto_trade_tiers || []
           });
         }
         setLoading(false);
@@ -54,6 +58,16 @@ export default function SettingsPage() {
       ...prev,
       [name]: type === 'checkbox' ? checked : value
     }));
+  };
+
+  const handleTierToggle = (tier: string) => {
+    setSettings(prev => {
+      const current = prev.auto_trade_tiers;
+      const updated = current.includes(tier) 
+        ? current.filter(t => t !== tier)
+        : [...current, tier];
+      return { ...prev, auto_trade_tiers: updated };
+    });
   };
 
   const handleSave = async () => {
@@ -198,6 +212,63 @@ export default function SettingsPage() {
                   </span>
                 </label>
               </div>
+            </div>
+          </div>
+
+          {/* Automated Trading */}
+          <div style={{ background: 'var(--input-bg)', padding: '24px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
+              <div style={{ padding: '10px', background: 'rgba(16, 185, 129, 0.1)', borderRadius: '10px', color: '#10b981' }}>
+                <Activity size={24} />
+              </div>
+              <div>
+                <h2 style={{ fontSize: '18px', margin: '0 0 4px 0' }}>Automated Trading</h2>
+                <p style={{ margin: 0, fontSize: '14px', color: 'var(--text-secondary)' }}>Permit the AI to autonomously execute approved signal tiers.</p>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                <div>
+                  <h3 style={{ margin: '0 0 4px 0', fontSize: '15px' }}>Master Auto-Trade Switch</h3>
+                  <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-secondary)' }}>Globally enable or disable automated order execution.</p>
+                </div>
+                <label style={{ position: 'relative', display: 'inline-block', width: '48px', height: '24px' }}>
+                  <input type="checkbox" name="auto_trade_enabled" checked={settings.auto_trade_enabled} onChange={handleChange} style={{ opacity: 0, width: 0, height: 0 }} />
+                  <span style={{ position: 'absolute', cursor: 'pointer', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: settings.auto_trade_enabled ? '#10b981' : '#4b5563', transition: '.4s', borderRadius: '24px' }}>
+                    <span style={{ position: 'absolute', content: '""', height: '18px', width: '18px', left: '3px', bottom: '3px', backgroundColor: 'white', transition: '.4s', borderRadius: '50%', transform: settings.auto_trade_enabled ? 'translateX(24px)' : 'translateX(0)' }}></span>
+                  </span>
+                </label>
+              </div>
+
+              {settings.auto_trade_enabled && (
+                <div style={{ padding: '16px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                  <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, marginBottom: '12px' }}>Permitted Signal Tiers</label>
+                  <p style={{ margin: '0 0 16px 0', fontSize: '13px', color: 'var(--text-secondary)' }}>Select which AI confidence tiers are allowed to bypass manual review.</p>
+                  
+                  <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                    {['S-Tier', 'A-Tier', 'B-Tier'].map(tier => (
+                      <button
+                        key={tier}
+                        onClick={() => handleTierToggle(tier)}
+                        style={{
+                          background: settings.auto_trade_tiers.includes(tier) ? 'rgba(37, 99, 235, 0.2)' : 'transparent',
+                          border: `1px solid ${settings.auto_trade_tiers.includes(tier) ? '#3b82f6' : 'var(--border-color)'}`,
+                          color: settings.auto_trade_tiers.includes(tier) ? '#60a5fa' : 'var(--text-secondary)',
+                          padding: '8px 16px',
+                          borderRadius: '24px',
+                          cursor: 'pointer',
+                          fontWeight: 600,
+                          fontSize: '13px',
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        {tier}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 

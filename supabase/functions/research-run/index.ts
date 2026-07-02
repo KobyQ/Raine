@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, SupabaseClient } from "npm:@supabase/supabase-js@2.108.2";
-import { fetchPaperBars, Bar } from "../_shared/execution.ts";
+import { fetchPaperBars, Bar, placePaperOrder, makeClientOrderId } from "../_shared/execution.ts";
 import { sma, rsi, detectRegime } from "../_shared/strategy.ts";
 import { insertAuditLog } from "../_shared/audit.ts";
 import { isMarketOpen } from "../_shared/market.ts";
@@ -8,6 +8,7 @@ import { netEdge, transactionCost, slippage } from "../../../packages/strategy/i
 import { getContextSnapshot, LogicContext } from "../../../packages/strategy/indicators.ts";
 import { validateGlobalSignal } from "../../../packages/strategy/riskManager.ts";
 import { fetchMacroEvents } from "../_shared/news.ts";
+import { sizeWithRiskCaps } from "../../../packages/risk/index.ts";
 import OpenAI from "npm:openai";
 
 async function hashBar(b: Bar) {
@@ -563,6 +564,80 @@ serve(async (req) => {
                       order_type = entry_price > snapshot.current_price ? 'SELL LIMIT' : 'SELL STOP';
                   }
               }
+
+              // ==========================================
+              // AUTO-TRADING EXECUTION
+              // ==========================================
+              try {
+                // 1. Fetch user risk settings for auto-trading
+                const { data: usersToAutoTrade } = await supabase
+                  .from('user_risk_settings')
+                  .select('*')
+                  .eq('auto_trade_enabled', true)
+                  .contains('auto_trade_tiers', [tier]);
+
+                if (usersToAutoTrade && usersToAutoTrade.length > 0) {
+                  console.log(`[Auto-Trade] Found ${usersToAutoTrade.length} users with auto-trade enabled for ${tier}.`);
+                  
+                  // For a single-tenant assumption, we just execute using the service role client
+                  // 2. Fetch Global Risk Caps
+                  const baseEquity = Number(Deno.env.get('STARTING_EQUITY_USD') ?? '100000');
+                  const [{ data: dayPnl }, { data: weekPnl }, { data: portfolioPnl }] = await Promise.all([
+                      supabase.rpc('day_pnl'),
+                      supabase.rpc('week_pnl'),
+                      supabase.rpc('portfolio_pnl'),
+                  ]);
+                  const dayRiskUSD = Math.abs(Number(dayPnl) || 0);
+                  const weekRiskUSD = Math.abs(Number(weekPnl) || 0);
+                  const equityUSD = baseEquity + (Number(portfolioPnl) || 0);
+                  const atrUSD = Math.abs(entry_price - stop_loss);
+
+                  // 3. Size Position
+                  const allowedQty = sizeWithRiskCaps(equityUSD, atrUSD, dayRiskUSD, weekRiskUSD);
+
+                  if (allowedQty > 0) {
+                    console.log(`[Auto-Trade] Executing ${allowedQty} units for ${symbol}`);
+                    sendEvent({ type: 'progress', message: `[Auto-Trade] Executing ${allowedQty} units for ${symbol}` });
+
+                    // 4. Create Trades record
+                    const { data: tradeRow, error: tradeErr } = await supabase
+                      .from('trades')
+                      .insert({ opportunity_id: data.id, symbol, side: dbSide, qty: allowedQty })
+                      .select('id')
+                      .single();
+
+                    if (!tradeErr && tradeRow) {
+                      // 5. Audit Log
+                      await insertAuditLog(supabase, {
+                        actor_type: 'SYSTEM', action: 'APPROVE_OPPORTUNITY', entity_type: 'opportunity', entity_id: data.id,
+                        payload_json: { qty: allowedQty, equityUSD, atrUSD, dayRiskUSD, weekRiskUSD, is_auto_trade: true },
+                      });
+
+                      // 6. Execute Order via MetaApi or Alpaca
+                      try {
+                        await placePaperOrder({
+                          symbol,
+                          side: dbSide === 'LONG' ? 'buy' : 'sell',
+                          qty: allowedQty,
+                          type: 'market',
+                        }, supabase);
+
+                        // 7. Mark as APPROVED
+                        await supabase.from('trade_opportunities').update({ status: 'APPROVED' }).eq('id', data.id);
+                        console.log(`[Auto-Trade] Successfully executed ${symbol}`);
+                      } catch (execErr: any) {
+                        console.error(`[Auto-Trade] Execution Failed for ${symbol}: ${execErr.message}`);
+                        await supabase.from('trades').delete().eq('id', tradeRow.id);
+                      }
+                    }
+                  } else {
+                     console.log(`[Auto-Trade] Skipped ${symbol}: Risk Caps Exceeded (Allowed Qty: 0)`);
+                  }
+                }
+              } catch (autoErr: any) {
+                console.error(`[Auto-Trade] System Error: ${autoErr.message}`);
+              }
+              // ==========================================
 
               results.push({ 
                 symbol, 
