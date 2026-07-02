@@ -3,13 +3,13 @@
 import React, { useEffect, useState } from 'react';
 import { useTheme } from '@components/ThemeProvider';
 import { Moon, Sun, ShieldAlert, KeyRound, Save, Activity } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 export default function SettingsPage() {
   const { theme, toggleTheme } = useTheme();
   
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState('');
   
   const [settings, setSettings] = useState({
     portfolio_capital: 10000,
@@ -72,7 +72,6 @@ export default function SettingsPage() {
 
   const handleSave = async () => {
     setSaving(true);
-    setMessage('');
     try {
       const res = await fetch('/api/settings', {
         method: 'POST',
@@ -81,15 +80,14 @@ export default function SettingsPage() {
       });
       const data = await res.json();
       if (data.success) {
-        setMessage('Settings saved successfully!');
+        toast.success('Settings saved successfully!');
       } else {
-        setMessage(data.error || 'Failed to save settings');
+        toast.error(data.error || 'Failed to save settings');
       }
     } catch (err) {
-      setMessage('An error occurred while saving.');
+      toast.error('An error occurred while saving.');
     }
     setSaving(false);
-    setTimeout(() => setMessage(''), 3000);
   };
 
   if (loading) {
@@ -117,12 +115,6 @@ export default function SettingsPage() {
           {saving ? 'Saving...' : 'Save Settings'}
         </button>
       </div>
-
-      {message && (
-        <div style={{ padding: '16px', background: message.includes('success') ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)', color: message.includes('success') ? '#10b981' : '#ef4444', borderRadius: '8px', marginBottom: '24px', border: `1px solid ${message.includes('success') ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)'}` }}>
-          {message}
-        </div>
-      )}
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px' }}>
         

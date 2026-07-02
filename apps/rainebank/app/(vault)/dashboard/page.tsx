@@ -5,6 +5,7 @@ import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'rec
 import { supabase } from '@lib/supabase';
 import dynamic from 'next/dynamic';
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 function parseAnalysisText(text: string) {
   const match = text.match(/^\[(.*?-Tier)\] \[(.*?) -> (.*?)\]/);
@@ -124,7 +125,8 @@ export default function VaultDashboard() {
         if (metricsRes.ok && !metricsData.error) {
           setMetrics(metricsData);
         }
-      } catch (err) {
+      } catch (err: any) {
+        toast.error(err.message || 'Failed to load dashboard metrics');
         console.error('Failed to load initial data', err);
       }
     };
@@ -151,7 +153,8 @@ export default function VaultDashboard() {
             setTotalPages(Math.ceil(data.pagination.total / data.pagination.limit) || 1);
           }
         }
-      } catch (err) {
+      } catch (err: any) {
+        toast.error(err.message || 'Failed to load signals');
         console.error('Failed to load signals', err);
       } finally {
         setLoading(false);

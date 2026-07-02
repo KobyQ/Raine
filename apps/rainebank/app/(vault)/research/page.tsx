@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 type Opportunity = {
   id: string;
@@ -119,7 +120,6 @@ export default function ResearchPage() {
   const [results, setResults] = useState<Opportunity[] | null>(null);
   const [rejections, setRejections] = useState<Rejection[] | null>(null);
   const [progressLogs, setProgressLogs] = useState<string[]>([]);
-  const [error, setError] = useState<string | null>(null);
 
   const commonSymbols = ['XAUUSD', 'XAGUSD', 'BTCUSD', 'UKOIL'];
 
@@ -128,7 +128,6 @@ export default function ResearchPage() {
     if (!symbol) return;
 
     setIsLoading(true);
-    setError(null);
     setResults(null);
     setRejections(null);
     setProgressLogs([]);
@@ -182,7 +181,7 @@ export default function ResearchPage() {
         }
       }
     } catch (err: any) {
-      setError(err.message);
+      toast.error(err.message || 'An error occurred during analysis');
     } finally {
       setIsLoading(false);
     }
@@ -309,11 +308,6 @@ export default function ResearchPage() {
             }
           `}</style>
         </div>
-      )}
-
-      {error && (
-        <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', padding: '16px', borderRadius: '12px', color: '#ef4444' }}>
-          {error}
         </div>
       )}
 

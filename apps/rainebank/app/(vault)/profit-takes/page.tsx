@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import toast from 'react-hot-toast';
 
 type Request = {
   id: string;
@@ -13,9 +14,14 @@ export default function Page() {
   const [requests, setRequests] = useState<Request[]>([]);
 
   const load = async () => {
-    const res = await fetch('/api/profit-take-requests');
-    const json = await res.json();
-    setRequests(json.requests ?? []);
+    try {
+      const res = await fetch('/api/profit-take-requests');
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || 'Failed to load requests');
+      setRequests(json.requests ?? []);
+    } catch (e: any) {
+      toast.error(e.message || 'Network error');
+    }
   };
 
   useEffect(() => {
@@ -23,8 +29,15 @@ export default function Page() {
   }, []);
 
   const act = async (id: string, action: 'approve' | 'deny') => {
-    await fetch(`/api/profit-take-requests/${id}/${action}`, { method: 'POST' });
-    await load();
+    try {
+      const res = await fetch(`/api/profit-take-requests/${id}/${action}`, { method: 'POST' });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || `Failed to ${action}`);
+      toast.success(`Request ${action}d`);
+      await load();
+    } catch (e: any) {
+      toast.error(e.message || 'Network error');
+    }
   };
 
   return (
