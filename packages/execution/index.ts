@@ -25,6 +25,8 @@ export interface OrderRequest {
   type: 'market' | 'limit' | 'stop' | 'stop_limit';
   limitPrice?: number;
   stopPrice?: number;
+  takeProfit?: number;
+  stopLoss?: number;
   tif?: 'day' | 'ioc' | 'fok';
   clientOrderId?: string;
 }
@@ -99,6 +101,10 @@ export async function placePaperOrder(
         symbol: order.symbol,
         volume: order.qty,
         openPrice: order.limitPrice || order.stopPrice,
+        stopLoss: order.stopLoss,
+        stopLossUnits: order.stopLoss ? 'ABSOLUTE_PRICE' : undefined,
+        takeProfit: order.takeProfit,
+        takeProfitUnits: order.takeProfit ? 'ABSOLUTE_PRICE' : undefined,
         clientId: order.clientOrderId,
       }),
     }, settings.meta_api_token, settings.meta_api_account_id);
@@ -115,7 +121,10 @@ export async function placePaperOrder(
         time_in_force: order.tif || 'day',
         limit_price: order.limitPrice,
         stop_price: order.stopPrice,
+        stop_loss: order.stopLoss ? { stop_price: order.stopLoss } : undefined,
+        take_profit: order.takeProfit ? { limit_price: order.takeProfit } : undefined,
         client_order_id: order.clientOrderId,
+        order_class: (order.stopLoss || order.takeProfit) ? 'bracket' : undefined,
       }),
     }, settings.alpaca_key || getEnv('BROKER_KEY') || '', settings.alpaca_secret || getEnv('BROKER_SECRET') || '');
   }

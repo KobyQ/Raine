@@ -23,14 +23,10 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   }
 
   const body = await req.json().catch(() => ({}));
-  const qty: number = body.qty ?? 1;
-  if (qty <= 0) {
-    return NextResponse.json({ ok: false, error: 'invalid qty' }, { status: 400 });
-  }
 
   const { data: opp, error: oppErr } = await client
     .from('trade_opportunities')
-    .select('symbol, side, timeframe, entry_plan_json, stop_plan_json')
+    .select('symbol, side, timeframe, entry_plan_json, stop_plan_json, take_profit_json')
     .eq('id', params.id)
     .single();
   if (oppErr || !opp) {
@@ -58,6 +54,11 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     dayRiskUSD,
     weekRiskUSD,
   );
+
+  const qty: number = body.qty ?? allowedQty;
+  if (qty <= 0) {
+    return NextResponse.json({ ok: false, error: 'invalid qty' }, { status: 400 });
+  }
   if (qty > allowedQty) {
     return NextResponse.json(
       { ok: false, error: 'qty exceeds risk cap', cap: allowedQty },
@@ -102,6 +103,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       side: opp.side === 'LONG' ? 'buy' : 'sell',
       qty,
       type: 'market',
+      takeProfit: opp.take_profit_json?.tp ? Number(opp.take_profit_json.tp) : undefined,
+      stopLoss: stopPrice > 0 ? stopPrice : undefined,
       supabase: client,
     });
   } catch (err: any) {
