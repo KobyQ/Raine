@@ -100,7 +100,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   });
 
   try {
-    await placeAndTrackOrder({
+    const exec = await placeAndTrackOrder({
       tradeId: trade.id,
       symbol: opp.symbol,
       side: opp.side === 'LONG' ? 'buy' : 'sell',
@@ -110,6 +110,11 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       stopLoss: stopPrice > 0 ? stopPrice : undefined,
       supabase: client,
     });
+
+    if (exec.status === 'FAILED') {
+      await client.from('trades').update({ status: 'FAILED' }).eq('id', trade.id);
+      return NextResponse.json({ ok: false, error: exec.errorMsg || 'Broker execution failed.' }, { status: 400 });
+    }
   } catch (err: any) {
     // Rollback the trade insertion so it doesn't appear in the vault as a ghost trade
     await client.from('trades').delete().eq('id', trade.id);

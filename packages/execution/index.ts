@@ -236,7 +236,13 @@ export async function placeAndTrackOrder(req: TrackedOrderRequest) {
     status = currentStatus.toUpperCase();
   }
 
-  return { orderId: orderRow.id, clientOrderId, filledQty, status };
+  return { 
+    orderId: orderRow.id, 
+    clientOrderId, 
+    filledQty, 
+    status,
+    errorMsg: status === 'FAILED' ? (orderRes?.message || 'Broker execution failed') : undefined 
+  };
 }
 
 export interface Bar {
