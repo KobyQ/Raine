@@ -57,9 +57,15 @@ export async function fetchMacroEvents(symbol: string): Promise<string> {
     }
 
     let report = "Upcoming Macro Catalysts (Next 24 Hours):\n";
+    let hasHighImpact = false;
     for (const e of relevantEvents) {
+      if (e.impact === "High") hasHighImpact = true;
       const eventTime = new Date(e.date).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZoneName: 'short' });
       report += `- [${e.impact} Impact] ${e.country}: ${e.title} at ${eventTime} (Forecast: ${e.forecast || 'N/A'}, Prev: ${e.previous || 'N/A'})\n`;
+    }
+
+    if (hasHighImpact) {
+      report += "\n[CRITICAL MACRO DIRECTIVE]: High-impact events are scheduled today. If your technical bias (B-Tier or A-Tier) aligns with the anticipated volatility of these events (e.g. going LONG on USD pairs during hawkish Fed data), you MUST upgrade the setup to S-Tier.";
     }
 
     return report;

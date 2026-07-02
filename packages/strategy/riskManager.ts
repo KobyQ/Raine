@@ -1,4 +1,5 @@
 import { SupabaseClient } from "@supabase/supabase-js";
+import { LogicContext } from "./indicators.ts";
 
 export type RiskValidationResult = {
   valid: boolean;
@@ -8,12 +9,13 @@ export type RiskValidationResult = {
 // Validates if the central AI is allowed to generate a new signal for this asset
 export async function validateGlobalSignal(
   supabase: SupabaseClient,
-  symbol: string
+  symbol: string,
+  currentSnapshot?: LogicContext
 ): Promise<RiskValidationResult> {
   // Fetch active and pending signals
   const { data: activeSignals, error: activeError } = await supabase
     .from("trade_opportunities")
-    .select("symbol")
+    .select("id, symbol, side, entry_plan_json, stop_plan_json")
     .in("status", ["APPROVED", "PENDING_APPROVAL"]);
 
   if (activeError) {
@@ -21,8 +23,31 @@ export async function validateGlobalSignal(
   }
 
   // Guardrail: Asset Isolation (Don't spam multiple signals for the same asset)
-  if (activeSignals && activeSignals.some(t => t.symbol === symbol)) {
-    return { valid: false, reason: `REJECTED: Asset isolation enforced. Signal already active for ${symbol}` };
+  // Smart Pyramiding Upgrade: Only block if we have an active trade that is NOT significantly in profit.
+  if (activeSignals) {
+    const activeForSymbol = activeSignals.filter(t => t.symbol === symbol);
+    if (activeForSymbol.length > 0) {
+      if (activeForSymbol.length >= 2) {
+        return { valid: false, reason: `REJECTED: Maximum pyramiding capacity reached (2 trades active for ${symbol}).` };
+      }
+
+      if (currentSnapshot && currentSnapshot.current_price && currentSnapshot.atr_14) {
+        const existingTrade = activeForSymbol[0];
+        const entryPrice = existingTrade.entry_plan_json?.price;
+        if (entryPrice) {
+          const priceDiff = Math.abs(currentSnapshot.current_price - entryPrice);
+          const atr = currentSnapshot.atr_14;
+          // If the current price is at least 1 ATR away from the first entry, we consider it "in profit" and allow scaling in
+          if (priceDiff > atr) {
+            console.log(`[Risk Manager] Pyramiding approved for ${symbol}. Current price is > 1 ATR from original entry.`);
+            return { valid: true };
+          } else {
+            return { valid: false, reason: `REJECTED: Asset isolation enforced. Active trade for ${symbol} is not far enough in profit (needs >1 ATR) to safely scale in.` };
+          }
+        }
+      }
+      return { valid: false, reason: `REJECTED: Asset isolation enforced. Signal already active for ${symbol}` };
+    }
   }
 
   return { valid: true };

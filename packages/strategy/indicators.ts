@@ -16,7 +16,23 @@ export type LogicContext = {
   safe_long_stop_loss: number | null;
   safe_short_stop_loss: number | null;
   trend_alignment: 'BULLISH_TREND' | 'BULLISH_PULLBACK' | 'BEARISH_TREND' | 'BEARISH_PULLBACK' | 'CHOP';
+  htf_support?: number[];
+  htf_resistance?: number[];
 };
+
+export function calculatePivotPoints(high: number, low: number, close: number) {
+  const p = (high + low + close) / 3;
+  const r1 = (2 * p) - low;
+  const s1 = (2 * p) - high;
+  const r2 = p + (high - low);
+  const s2 = p - (high - low);
+  
+  return {
+    support: [s1, s2].sort((a, b) => b - a),
+    resistance: [r1, r2].sort((a, b) => a - b),
+    pivot: p
+  };
+}
 
 export function getContextSnapshot(
   timestamps: string[],
@@ -41,6 +57,8 @@ export function getContextSnapshot(
       safe_long_stop_loss: null,
       safe_short_stop_loss: null,
       trend_alignment: 'CHOP',
+      htf_support: [],
+      htf_resistance: [],
     };
   }
 

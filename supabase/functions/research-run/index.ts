@@ -5,7 +5,7 @@ import { sma, rsi, detectRegime } from "../_shared/strategy.ts";
 import { insertAuditLog } from "../_shared/audit.ts";
 import { isMarketOpen } from "../_shared/market.ts";
 import { netEdge, transactionCost, slippage } from "../../../packages/strategy/index.ts";
-import { getContextSnapshot, LogicContext } from "../../../packages/strategy/indicators.ts";
+import { getContextSnapshot, LogicContext, calculatePivotPoints } from "../../../packages/strategy/indicators.ts";
 import { validateGlobalSignal } from "../../../packages/strategy/riskManager.ts";
 import { fetchMacroEvents } from "../_shared/news.ts";
 import { sizeWithRiskCaps } from "../../../packages/risk/index.ts";
@@ -110,8 +110,11 @@ You MUST respond strictly with a raw JSON object matching the exact schema below
 2. THE 'EMPTY AIR' CHECK: Before suggesting a direction, evaluate the distance to the next major liquidity zone. If the current price is floating in 'empty air' midway between support and resistance, you MUST normally reject the setup. EXCEPTION: If the asset is in a powerful trend (e.g. adx_14 > 25), you are permitted to take Momentum Continuation trades at market price even in empty air.
 3. STOP LOSS & VOLATILITY (ATR): The snapshot provides \`safe_long_stop_loss\`, \`safe_short_stop_loss\`, and \`atr_14\`. 
    - Your \`suggested_stop_loss\` MUST exactly match the price point at which your setup is technically invalidated.
-   - VOLATILITY CHECK: Your stop loss distance MUST be wide enough to survive the \`atr_14\` (Average True Range) but MUST NOT exceed 4x the \`atr_14\`. If the structural stop required is greater than 4x the ATR, the setup is mathematically untradeable. REJECT it by setting recommended_direction to NONE.
-4. FUNDAMENTAL REALITY CHECK: You MUST heavily weigh the provided \`fundamental_context\`. If significant macro news opposes the technical setup, REJECT the setup immediately. If no major news exists, explicitly note that the market is driven by technicals, but NEVER say 'Without fundamental context'.
+   - VOLATILITY CHECK: For highly volatile assets (e.g., Gold, Silver, Crypto), if the structural swing low/high stop loss exceeds a 3% distance from the entry, you MUST override it and calculate a tighter Volatility Stop at \`Entry - (1.5 * atr_14)\` (for Longs) or \`Entry + (1.5 * atr_14)\` (for Shorts). This maintains risk compliance.
+   - If the structural stop required is greater than 4x the ATR, the setup is mathematically untradeable. REJECT it by setting recommended_direction to NONE.
+4. FUNDAMENTAL REALITY CHECK: You MUST heavily weigh the provided \`fundamental_context\`. If significant macro news opposes the technical setup, REJECT the setup immediately. 
+   - [CRITICAL MACRO DIRECTIVE]: If the technical setup is strong (B-Tier or A-Tier) and aligns perfectly with a High-Impact fundamental catalyst in the \`fundamental_context\`, you MUST upgrade your confidence to S-Tier (90+).
+   - If no major news exists, explicitly note that the market is driven by technicals, but NEVER say 'Without fundamental context'.
    - Do NOT invent generic macro platitudes (like 'geopolitical tensions' or 'inflation'). If you assess the macro environment, focus on the actual dominant drivers pushing the asset's current trend (e.g. hawkish Fed policy, strong DXY causing a massive drop).
    - If fundamental reality is BEARISH, REJECT any LONG setups. If BULLISH, REJECT any SHORT setups.
 5. COUNTER-TREND MOMENTUM CHECK: 
@@ -292,8 +295,11 @@ serve(async (req) => {
             // LAYER A: Deterministic Evaluation Guard
             sendEvent({ type: 'progress', message: `[Layer A: Deterministic Guard] Evaluating mathematical momentum and regime...` });
             
-            // Fetch 1D Macro Trend
+            // Fetch 1D Macro Trend & HTF Support/Resistance
             let htf_trend: 'BULLISH' | 'BEARISH' | 'CHOP' = 'CHOP';
+            let htf_support: number[] = [];
+            let htf_resistance: number[] = [];
+
             if (timeframe !== '1D') {
               try {
                 const result = await fetchPaperBars(symbol, '1D');
@@ -305,6 +311,13 @@ serve(async (req) => {
                 );
                 if (dailySnapshot.trend_alignment.startsWith('BULLISH')) htf_trend = 'BULLISH';
                 else if (dailySnapshot.trend_alignment.startsWith('BEARISH')) htf_trend = 'BEARISH';
+                
+                if (result.bars.length > 0) {
+                  const lastBar = result.bars[result.bars.length - 1];
+                  const pivots = calculatePivotPoints(lastBar.h, lastBar.l, lastBar.c);
+                  htf_support = pivots.support;
+                  htf_resistance = pivots.resistance;
+                }
               } catch (e) {
                 console.warn(`[Macro Fetch] Failed to fetch 1D trend for ${symbol}`);
               }
@@ -317,6 +330,10 @@ serve(async (req) => {
               bars.map((b) => b.c)
             );
             rawSnapshot.htf_trend = htf_trend;
+            if (htf_support.length > 0) {
+              rawSnapshot.htf_support = htf_support;
+              rawSnapshot.htf_resistance = htf_resistance;
+            }
             
             // Inject macro context if provided via URL params
             let fundamental_context = newsContext;
@@ -463,7 +480,7 @@ serve(async (req) => {
             
             // LAYER C: Risk Manager (Global Asset Isolation)
             sendEvent({ type: 'progress', message: `[Layer C: Risk Manager] Validating global signal constraints...` });
-            const riskValidation = await validateGlobalSignal(supabase, symbol);
+            const riskValidation = await validateGlobalSignal(supabase, symbol, snapshot);
             const rrRatio = 2.0; // Mathematically forced above
             const expectedReturnPct = Math.abs(take_profit - entry_price) / entry_price;
             
