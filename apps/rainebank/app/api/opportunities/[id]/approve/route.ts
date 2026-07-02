@@ -37,7 +37,9 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   const stopPrice = Number(opp.stop_plan_json?.stop ?? 0);
   const atrUSD = Math.abs(entryPrice - stopPrice);
 
-  const baseEquity = Number(process.env.STARTING_EQUITY_USD ?? '100000');
+  const { data: settings } = await client.from('user_risk_settings').select('*').limit(1).single();
+  const baseEquity = Number(settings?.portfolio_capital ?? process.env.STARTING_EQUITY_USD ?? '100000');
+  const perTradePct = Number(settings?.risk_per_trade_pct ?? 0.01);
   const [{ data: dayPnl }, { data: weekPnl }, { data: portfolioPnl }] =
     await Promise.all([
       client.rpc('day_pnl'),
@@ -53,6 +55,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     atrUSD,
     dayRiskUSD,
     weekRiskUSD,
+    perTradePct
   );
 
   const qty: number = body.qty ?? allowedQty;

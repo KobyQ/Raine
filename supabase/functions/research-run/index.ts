@@ -597,8 +597,10 @@ serve(async (req) => {
                   console.log(`[Auto-Trade] Found ${usersToAutoTrade.length} users with auto-trade enabled for ${tier}.`);
                   
                   // For a single-tenant assumption, we just execute using the service role client
+                  const settings = usersToAutoTrade[0];
                   // 2. Fetch Global Risk Caps
-                  const baseEquity = Number(Deno.env.get('STARTING_EQUITY_USD') ?? '100000');
+                  const baseEquity = Number(settings.portfolio_capital ?? Deno.env.get('STARTING_EQUITY_USD') ?? '100000');
+                  const perTradePct = Number(settings.risk_per_trade_pct ?? 0.01);
                   const [{ data: dayPnl }, { data: weekPnl }, { data: portfolioPnl }] = await Promise.all([
                       supabase.rpc('day_pnl'),
                       supabase.rpc('week_pnl'),
@@ -610,7 +612,7 @@ serve(async (req) => {
                   const atrUSD = Math.abs(entry_price - stop_loss);
 
                   // 3. Size Position
-                  const allowedQty = sizeWithRiskCaps(equityUSD, atrUSD, dayRiskUSD, weekRiskUSD);
+                  const allowedQty = sizeWithRiskCaps(equityUSD, atrUSD, dayRiskUSD, weekRiskUSD, perTradePct);
 
                   if (allowedQty > 0) {
                     console.log(`[Auto-Trade] Executing ${allowedQty} units for ${symbol}`);
