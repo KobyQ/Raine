@@ -13,9 +13,10 @@ function getEnv(name: string): string | undefined {
 }
 
 export function makeClientOrderId(tradeId: string, n = 1) {
-  // MetaAPI requires clientId to match ^[a-zA-Z0-9_]{1,32}$
-  const cleanId = tradeId.replace(/-/g, '');
-  return `${cleanId.substring(0, 28)}_${n}`;
+  // MetaAPI requires clientId to match ^TE_[a-zA-Z0-9]{1,29}$
+  const cleanId = tradeId.replace(/[^a-zA-Z0-9]/g, '');
+  // TE_ is 3 chars. n is typically 1 char. 3 + 1 = 4. 32 - 4 = 28 max chars from uuid.
+  return `TE_${cleanId.substring(0, 28)}${n}`;
 }
 
 export interface OrderRequest {
