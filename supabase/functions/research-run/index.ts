@@ -106,10 +106,10 @@ You MUST respond strictly with a raw JSON object matching the exact schema below
 
 [RISK EVALUATION RULES]
 1. DYNAMIC STRATEGY SELECTION: Do not default to pullbacks. First, identify the market structure. If the asset is trending heavily (Price > 50 & 200 EMA), prioritize MOMENTUM_CONTINUATION setups using minor retracements. If the asset is trapped between major support and resistance, prioritize MEAN_REVERSION setups targeting the range boundaries.
-2. THE 'EMPTY AIR' CHECK: Before suggesting a direction, evaluate the distance to the next major liquidity zone. If the current price is floating in 'empty air' midway between support and resistance with no clear edge, set \`recommended_direction\` to \`NONE\` and protect capital.
+2. THE 'EMPTY AIR' CHECK: Before suggesting a direction, evaluate the distance to the next major liquidity zone. If the current price is floating in 'empty air' midway between support and resistance, you MUST normally reject the setup. EXCEPTION: If the asset is in a powerful trend (e.g. adx_14 > 25), you are permitted to take Momentum Continuation trades at market price even in empty air.
 3. STOP LOSS & VOLATILITY (ATR): The snapshot provides \`safe_long_stop_loss\`, \`safe_short_stop_loss\`, and \`atr_14\`. 
    - Your \`suggested_stop_loss\` MUST exactly match the price point at which your setup is technically invalidated.
-   - VOLATILITY CHECK: Your stop loss distance MUST be wide enough to survive the \`atr_14\` (Average True Range) but MUST NOT exceed 3x the \`atr_14\`. If the structural stop required is greater than 3x the ATR, the setup is mathematically untradeable. REJECT it by setting recommended_direction to NONE.
+   - VOLATILITY CHECK: Your stop loss distance MUST be wide enough to survive the \`atr_14\` (Average True Range) but MUST NOT exceed 4x the \`atr_14\`. If the structural stop required is greater than 4x the ATR, the setup is mathematically untradeable. REJECT it by setting recommended_direction to NONE.
 4. FUNDAMENTAL REALITY CHECK: You MUST heavily weigh the provided \`fundamental_context\`. If significant macro news opposes the technical setup, REJECT the setup immediately. If no major news exists, explicitly note that the market is driven by technicals, but NEVER say 'Without fundamental context'.
    - Do NOT invent generic macro platitudes (like 'geopolitical tensions' or 'inflation'). If you assess the macro environment, focus on the actual dominant drivers pushing the asset's current trend (e.g. hawkish Fed policy, strong DXY causing a massive drop).
    - If fundamental reality is BEARISH, REJECT any LONG setups. If BULLISH, REJECT any SHORT setups.
@@ -399,10 +399,14 @@ serve(async (req) => {
             let entry_price = evaluation.execution_parameters?.suggested_entry_price || snapshot.current_price;
             let stop_loss = evaluation.execution_parameters?.suggested_stop_loss || (dbSide === "LONG" ? snapshot.safe_long_stop_loss : snapshot.safe_short_stop_loss);
             const confidence_score = evaluation.confidence_score || 50;
+            let tier = "C-Tier";
+            if (confidence_score >= 90) tier = "S-Tier";
+            else if (confidence_score >= 80) tier = "A-Tier";
+            else if (confidence_score >= 70) tier = "B-Tier";
             
             const rationaleObj = evaluation.institutional_rationale || {};
             let institutional_rationale = [
-              `[${evaluation.market_structure} -> ${evaluation.strategy_applied}]`,
+              `[${tier}] [${evaluation.market_structure} -> ${evaluation.strategy_applied}]`,
               rationaleObj.directional_bias,
               rationaleObj.execution_trigger,
               rationaleObj.invalidation_point,
@@ -413,10 +417,10 @@ serve(async (req) => {
             console.log(`[Layer B: Cognitive Guard] AI Response for ${symbol}: Valid Setup = ${is_valid}, Direction = ${evaluation.recommended_direction}`);
             console.log(`[Layer B] AI Rationale: ${institutional_rationale}`);
 
-            if (!is_valid || confidence_score < 80) {
+            if (!is_valid || confidence_score < 70) {
               const rejectReason = !is_valid 
                 ? institutional_rationale 
-                : `AI Confidence Score (${confidence_score}) below 80 threshold.`;
+                : `AI Confidence Score (${confidence_score}) below 70 threshold.`;
                 
               console.log(`[Layer B: Cognitive Guard] REJECTED ${symbol} by AI Risk Officer: ${rejectReason}`);
               sendEvent({ type: 'progress', message: `[Layer B: AI Risk Officer] REJECTED ${symbol}: ${rejectReason}` });
