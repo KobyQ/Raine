@@ -79,10 +79,6 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     return NextResponse.json({ ok: false, error: tradeErr.message }, { status: 500 });
   }
 
-  await client
-    .from('trade_opportunities')
-    .update({ status: 'APPROVED' })
-    .eq('id', params.id);
 
   await insertAuditLog(client, {
     actor_type: 'SYSTEM',
@@ -109,6 +105,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       supabase: client,
     });
   } catch (err: any) {
+    // Rollback the trade insertion so it doesn't appear in the vault as a ghost trade
+    await client.from('trades').delete().eq('id', trade.id);
     return NextResponse.json({ ok: false, error: err.message }, { status: 500 });
   }
 
