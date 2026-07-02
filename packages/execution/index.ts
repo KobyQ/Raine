@@ -13,7 +13,9 @@ function getEnv(name: string): string | undefined {
 }
 
 export function makeClientOrderId(tradeId: string, n = 1) {
-  return `${tradeId}-${n}`;
+  // MetaAPI requires clientId to match ^[a-zA-Z0-9_]{1,32}$
+  const cleanId = tradeId.replace(/-/g, '');
+  return `${cleanId.substring(0, 28)}_${n}`;
 }
 
 export interface OrderRequest {
