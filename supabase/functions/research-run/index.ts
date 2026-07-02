@@ -398,7 +398,8 @@ serve(async (req) => {
             
             let entry_price = evaluation.execution_parameters?.suggested_entry_price || snapshot.current_price;
             let stop_loss = evaluation.execution_parameters?.suggested_stop_loss || (dbSide === "LONG" ? snapshot.safe_long_stop_loss : snapshot.safe_short_stop_loss);
-            const confidence_score = evaluation.confidence_score || 50;
+            let raw_confidence = evaluation.confidence_score || 50;
+            const confidence_score = raw_confidence <= 1.0 ? raw_confidence * 100 : raw_confidence;
             let tier = "C-Tier";
             if (confidence_score >= 90) tier = "S-Tier";
             else if (confidence_score >= 80) tier = "A-Tier";
@@ -444,7 +445,8 @@ serve(async (req) => {
                 ai_risks: "Rejected by AI Risk Officer",
                 model_id: modelId,
                 model_version: modelVersion,
-                risk_summary: `RSI ${snapshot.rsi_14}`
+                risk_summary: `RSI ${snapshot.rsi_14}`,
+                confidence: confidence_score
               });
               continue;
             }
