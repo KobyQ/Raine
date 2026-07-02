@@ -97,6 +97,7 @@ export default function Page() {
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState<string | null>(null);
   const [showWarnings, setShowWarnings] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // Pagination State
   const [page, setPage] = useState(1);
@@ -133,8 +134,18 @@ export default function Page() {
 
   const approve = async (id: string) => {
     setProcessing(id);
-    await fetch(`/api/opportunities/${id}/approve`, { method: 'POST' });
-    setOpps((prev) => prev.filter((o) => o.id !== id));
+    setErrorMsg(null);
+    try {
+      const res = await fetch(`/api/opportunities/${id}/approve`, { method: 'POST' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data.ok === false) {
+        setErrorMsg(data.error || 'Failed to approve execution. Check your broker API keys.');
+      } else {
+        setOpps((prev) => prev.filter((o) => o.id !== id));
+      }
+    } catch (e: any) {
+      setErrorMsg(e.message || 'A network error occurred.');
+    }
     setProcessing(null);
   };
 
@@ -164,6 +175,36 @@ export default function Page() {
 
   return (
     <div>
+      {errorMsg && (
+        <div style={{
+          position: 'fixed',
+          bottom: '32px',
+          right: '32px',
+          background: 'rgba(248,113,113,0.1)',
+          border: '1px solid rgba(248,113,113,0.5)',
+          color: '#f87171',
+          padding: '16px 24px',
+          borderRadius: '12px',
+          fontWeight: 600,
+          boxShadow: '0 10px 25px rgba(248, 113, 113, 0.2)',
+          zIndex: 9999,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '16px',
+          backdropFilter: 'blur(10px)'
+        }}>
+          <span>{errorMsg}</span>
+          <button 
+            onClick={() => setErrorMsg(null)}
+            style={{ background: 'rgba(248,113,113,0.2)', border: 'none', color: '#f87171', cursor: 'pointer', fontWeight: 800, fontSize: '14px', width: '28px', height: '28px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.2s' }}
+            onMouseOver={(e) => e.currentTarget.style.background = 'rgba(248,113,113,0.3)'}
+            onMouseOut={(e) => e.currentTarget.style.background = 'rgba(248,113,113,0.2)'}
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
         <h2 style={{ fontSize: '24px', fontWeight: 800, color: '#fff', letterSpacing: '-0.5px', margin: 0 }}>
           Pending Opportunities
