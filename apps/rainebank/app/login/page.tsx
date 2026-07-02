@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@lib/supabase';
 import { Terminal, ArrowRight, Loader2 } from 'lucide-react';
@@ -15,6 +15,16 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data } = await supabase.auth.getSession();
+      if (data?.session) {
+        router.push('/dashboard');
+      }
+    };
+    checkAuth();
+  }, [router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
