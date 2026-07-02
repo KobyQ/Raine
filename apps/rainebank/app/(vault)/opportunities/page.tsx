@@ -168,23 +168,36 @@ export default function Page() {
         <h2 style={{ fontSize: '24px', fontWeight: 800, color: '#fff', letterSpacing: '-0.5px', margin: 0 }}>
           Pending Opportunities
         </h2>
-        
-        <button
-          onClick={() => { setPage(1); setShowWarnings(!showWarnings); }}
-          style={{
-            background: showWarnings ? 'rgba(248,113,113,0.1)' : 'rgba(255,255,255,0.05)',
-            color: showWarnings ? '#f87171' : '#e5e7eb',
-            border: `1px solid ${showWarnings ? 'rgba(248,113,113,0.3)' : 'rgba(255,255,255,0.1)'}`,
-            padding: '8px 16px',
-            borderRadius: '100px',
-            fontSize: '13px',
-            fontWeight: 700,
-            cursor: 'pointer',
-            transition: 'all 0.2s'
-          }}
-        >
-          {showWarnings ? 'Hide C-Tier Signals' : 'Show C-Tier Signals'}
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <span style={{ color: '#9ca3af', fontSize: '14px', fontWeight: 600 }}>Show C-Tier Signals</span>
+          <div
+            onClick={() => {
+              setPage(1);
+              setShowWarnings(!showWarnings);
+            }}
+            style={{
+              width: '44px',
+              height: '24px',
+              background: showWarnings ? '#f87171' : '#374151',
+              borderRadius: '9999px',
+              position: 'relative',
+              cursor: 'pointer',
+              transition: 'background 0.2s ease-in-out'
+            }}
+          >
+            <div style={{
+              position: 'absolute',
+              top: '2px',
+              left: showWarnings ? '22px' : '2px',
+              width: '20px',
+              height: '20px',
+              background: '#fff',
+              borderRadius: '50%',
+              transition: 'left 0.2s ease-in-out',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+            }} />
+          </div>
+        </div>
       </div>
       
       {opps.length === 0 && <p style={{ color: '#9ca3af' }}>No pending opportunities.</p>}
